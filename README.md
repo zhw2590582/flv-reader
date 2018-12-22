@@ -1,2 +1,2 @@
-# flv2mp4
-Flv To Fmp4
+# flv-reader
+Parse flv to fmp4 for Media Source Extension
