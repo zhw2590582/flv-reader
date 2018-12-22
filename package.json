@@ -1,0 +1,20 @@
+{
+  "name": "flv-reader",
+  "version": "1.0.0",
+  "description": "Parse flv to fmp4 for Media Source Extension",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhw2590582/flv-reader.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zhw2590582/flv-reader/issues"
+  },
+  "homepage": "https://github.com/zhw2590582/flv-reader#readme"
+}
