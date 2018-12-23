@@ -1,6 +1,6 @@
-import config from './config';
+import config from '../config';
 
-export default class CreatMediaSource {
+export default class MSE {
     constructor(flv) {
         this.flv = flv;
         this.creatUrl();

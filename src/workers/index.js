@@ -1,4 +1,4 @@
-export default class CreatWorker {
+export default class Workers {
     constructor() {
         this.workers = new Map();
     }
@@ -12,7 +12,7 @@ export default class CreatWorker {
     }
 
     static create(fn) {
-        const blob = new Blob([CreatWorker.fnToStr(fn)], {
+        const blob = new Blob([Workers.fnToStr(fn)], {
             type: 'application/javascript',
         });
         const objectURL = window.URL.createObjectURL(blob);
@@ -36,7 +36,7 @@ export default class CreatWorker {
 
     add(name, fn) {
         if (!this.workers.has(name)) {
-            this.workers.set(name, CreatWorker.create(fn));
+            this.workers.set(name, Workers.create(fn));
         }
     }
 

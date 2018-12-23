@@ -1,9 +1,9 @@
 import Emitter from 'tiny-emitter';
-import checkSupport from './utils/checkSupport';
-import EventProxy from './eventProxy';
-import CreatWorker from './creatWorker';
-import CreatMediaSource from './creatMediaSource';
-import FlvParse from './flvParse';
+import support from './utils/support';
+import Events from './events';
+import Workers from './workers';
+import MSE from './mse';
+import Parse from './parse';
 import * as utils from './utils';
 import config from './config';
 
@@ -12,11 +12,11 @@ class Flv extends Emitter {
     constructor(options) {
         super();
         this.options = Object.assign({}, Flv.DEFAULTS, options);
-        checkSupport(this.options);
-        this.events = new EventProxy(this);
-        this.workers = new CreatWorker(this);
-        this.mediaSource = new CreatMediaSource(this);
-        this.flvData = new FlvParse(this);
+        support(this.options);
+        this.events = new Events(this);
+        this.workers = new Workers(this);
+        this.mse = new MSE(this);
+        this.parse = new Parse(this);
         id += 1;
         this.id = id;
         Flv.instances.push(this);

@@ -1,4 +1,4 @@
-export default class EventProxy {
+export default class Events {
     constructor() {
         this.destroyEvents = [];
         this.proxy = this.proxy.bind(this);
