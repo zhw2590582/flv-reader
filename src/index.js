@@ -1,5 +1,6 @@
 import Emitter from 'tiny-emitter';
-import support from './utils/support';
+import checkSupport from './utils/checkSupport';
+import verification from './utils/verification';
 import Events from './events';
 import Workers from './workers';
 import MSE from './mse';
@@ -11,8 +12,9 @@ let id = 0;
 class Flv extends Emitter {
     constructor(options) {
         super();
+        checkSupport();
         this.options = Object.assign({}, Flv.DEFAULTS, options);
-        support(this.options);
+        verification(this.options);
         this.events = new Events(this);
         this.workers = new Workers(this);
         this.mse = new MSE(this);
