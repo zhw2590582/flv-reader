@@ -61,3 +61,13 @@ export function readUint8(uint8) {
         return tempUint8;
     };
 }
+
+export function createAbortError() {
+    try {
+        return new DOMException('Aborted', 'AbortError');
+    } catch (err) {
+        const abortError = new Error('Aborted');
+        abortError.name = 'AbortError';
+        return abortError;
+    }
+}

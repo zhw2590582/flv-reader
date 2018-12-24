@@ -4,8 +4,7 @@ export default function readFile(flv, file) {
     const reader = new FileReader();
     proxy(reader, 'load', e => {
         const buffer = e.target.result;
-        const uint8 = new Uint8Array(buffer);
-        flv.emit('flvFetchEnd', uint8);
+        flv.emit('flvFetchEnd', new Uint8Array(buffer));
     });
     reader.readAsArrayBuffer(file);
 }

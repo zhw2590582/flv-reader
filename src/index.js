@@ -1,6 +1,6 @@
 import Emitter from 'tiny-emitter';
 import checkSupport from './utils/checkSupport';
-import verification from './utils/verification';
+import validateOptions from './utils/validateOptions';
 import Debug from './debug';
 import Events from './events';
 import Workers from './workers';
@@ -15,7 +15,7 @@ class Flv extends Emitter {
     constructor(options) {
         super();
         this.options = Object.assign({}, Flv.DEFAULTS, options);
-        verification(this.options);
+        validateOptions(this.options);
         checkSupport(this.options);
         this.debug = new Debug(this);
         this.events = new Events(this);

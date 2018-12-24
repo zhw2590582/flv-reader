@@ -376,6 +376,15 @@
       return tempUint8;
     };
   }
+  function createAbortError() {
+    try {
+      return new DOMException('Aborted', 'AbortError');
+    } catch (err) {
+      var abortError = new Error('Aborted');
+      abortError.name = 'AbortError';
+      return abortError;
+    }
+  }
 
   var utils = /*#__PURE__*/Object.freeze({
     errorHandle: errorHandle,
@@ -387,7 +396,8 @@
     bin2Float: bin2Float,
     bin2Boolean: bin2Boolean,
     log: log,
-    readUint8: readUint8
+    readUint8: readUint8,
+    createAbortError: createAbortError
   });
 
   function checkSupport(options) {
@@ -398,7 +408,7 @@
     errorHandle(typeof window.fetch === 'function', "Unsupported 'fetch' method");
   }
 
-  function verification(options) {
+  function validateOptions(options) {
     var mediaElement = options.mediaElement,
         url = options.url;
     errorHandle(mediaElement instanceof HTMLVideoElement, 'The first parameter is not a video tag element');
@@ -550,11 +560,156 @@
     return Workers;
   }();
 
-  var Stream = function Stream(flv) {
-    classCallCheck(this, Stream);
+  function fetchRequest(flv, url) {
+    flv.emit('flvFetchStart');
+    fetch(url).then(function (response) {
+      var reader = response.body.getReader();
+      flv.on('destroy', function () {
+        reader.cancel();
+      });
+      flv.on('streamCancel', function () {
+        reader.cancel();
+      });
 
-    console.log(flv);
-  };
+      (function read() {
+        reader.read().then(function (_ref) {
+          var done = _ref.done,
+              value = _ref.value;
+
+          if (done) {
+            flv.emit('flvFetchEnd');
+            return;
+          }
+
+          flv.emit('flvFetching', new Uint8Array(value));
+          read();
+        }).catch(function (error) {
+          throw error;
+        });
+      })();
+    });
+  }
+
+  function mozXhrRequest(flv, url) {
+    var proxy = flv.events.proxy;
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.responseType = 'moz-chunked-arraybuffer';
+    proxy(xhr, 'readystatechange', function () {
+      flv.emit('readystatechange', xhr);
+    });
+    proxy(xhr, 'progress', function () {
+      flv.emit('flvFetching', new Uint8Array(xhr.response));
+    });
+    proxy(xhr, 'loadend', function () {
+      flv.emit('flvFetchEnd');
+    });
+    proxy(xhr, 'error', function (error) {
+      throw error;
+    });
+    flv.on('destroy', function () {
+      xhr.abort();
+      createAbortError();
+    });
+    flv.on('streamCancel', function () {
+      xhr.abort();
+      createAbortError();
+    });
+    xhr.send();
+  }
+
+  function xhrRequest(flv, url) {
+    var proxy = flv.events.proxy;
+    var textEncoder = new TextEncoder();
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.responseType = 'text';
+    var index = 0;
+    proxy(xhr, 'readystatechange', function () {
+      flv.emit('readystatechange', xhr);
+    });
+    proxy(xhr, 'progress', function () {
+      var rawText = xhr.responseText.substr(index);
+      index = xhr.responseText.length;
+      flv.emit('flvFetching', textEncoder.encode(rawText, {
+        stream: true
+      }));
+    });
+    proxy(xhr, 'loadend', function () {
+      flv.emit('flvFetching', textEncoder.encode('', {
+        stream: false
+      }));
+      flv.emit('flvFetchEnd');
+    });
+    proxy(xhr, 'error', function (error) {
+      throw error;
+    });
+    flv.on('destroy', function () {
+      xhr.abort();
+      createAbortError();
+    });
+    flv.on('streamCancel', function () {
+      xhr.abort();
+      createAbortError();
+    });
+    xhr.send();
+  }
+
+  function readFile(flv, file) {
+    flv.emit('flvFetchStart');
+    var proxy = flv.events.proxy;
+    var reader = new FileReader();
+    proxy(reader, 'load', function (e) {
+      var buffer = e.target.result;
+      flv.emit('flvFetchEnd', new Uint8Array(buffer));
+    });
+    reader.readAsArrayBuffer(file);
+  }
+
+  function supportsXhrResponseType(type) {
+    try {
+      var tmpXhr = new XMLHttpRequest();
+      tmpXhr.responseType = type;
+      return tmpXhr.responseType === type;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  var Stream =
+  /*#__PURE__*/
+  function () {
+    function Stream(flv) {
+      classCallCheck(this, Stream);
+
+      var url = flv.options.url;
+      var transportFactory = Stream.getStreamFactory(url);
+      transportFactory(flv, url);
+    }
+
+    createClass(Stream, null, [{
+      key: "getStreamFactory",
+      value: function getStreamFactory(url) {
+        if (url instanceof File) {
+          return readFile;
+        }
+
+        if (typeof Response !== 'undefined' && Object.prototype.hasOwnProperty.call(Response.prototype, 'body') && typeof Headers === 'function') {
+          return fetchRequest;
+        }
+
+        var mozChunked = 'moz-chunked-arraybuffer';
+
+        if (supportsXhrResponseType(mozChunked)) {
+          return mozXhrRequest;
+        }
+
+        return xhrRequest;
+      }
+    }]);
+
+    return Stream;
+  }();
 
   var mse = {
     mediaSource: {
@@ -808,12 +963,10 @@
   }
 
   function videoTag(videoTagBody) {
-    console.log(videoTagBody);
     return {};
   }
 
   function audioTag(audioTagBody) {
-    console.log(audioTagBody);
     return {};
   }
 
@@ -844,7 +997,6 @@
         _this.parse();
       });
       flv.on('flvFetchEnd', function (uint8) {
-        flv.emit('flvFetchEnd');
         debug.log('flv-fetch-end');
 
         if (uint8) {
@@ -915,14 +1067,14 @@
 
             case 9:
               tag.meta = videoTag(tag.body);
-              this.flv.emit('videoTagMeta', tag.meta);
-              debug.log('video-tag-meta', tag.meta);
+              this.flv.emit('videoTagMeta', tag.meta); // debug.log('video-tag-meta', tag.meta);
+
               break;
 
             case 8:
               tag.meta = audioTag(tag.body);
-              this.flv.emit('audioTagMeta', tag.meta);
-              debug.log('audio-tag-meta', tag.meta);
+              this.flv.emit('audioTagMeta', tag.meta); // debug.log('audio-tag-meta', tag.meta);
+
               break;
 
             default:
@@ -963,7 +1115,7 @@
 
       _this = possibleConstructorReturn(this, getPrototypeOf(Flv).call(this));
       _this.options = Object.assign({}, Flv.DEFAULTS, options);
-      verification(_this.options);
+      validateOptions(_this.options);
       checkSupport(_this.options);
       _this.debug = new Debug(assertThisInitialized(assertThisInitialized(_this)));
       _this.events = new Events(assertThisInitialized(assertThisInitialized(_this)));

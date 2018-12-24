@@ -1,6 +1,6 @@
 import { errorHandle } from '.';
 
-export default function verification(options) {
+export default function validateOptions(options) {
     const { mediaElement, url } = options;
     errorHandle(mediaElement instanceof HTMLVideoElement, 'The first parameter is not a video tag element');
     errorHandle(
