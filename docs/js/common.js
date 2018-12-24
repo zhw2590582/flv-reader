@@ -5,6 +5,19 @@
     var $fileInput = document.querySelector('.fileInput');
     var $jsonTree = document.querySelector('.jsonTree');
 
+    consola.creat({
+        target: '.console',
+        size: '100%',
+        zIndex: 99,
+    });
+
+    console.info('Welcome, if you like it, consider star it, thank you.');
+    console.info('https://github.com/zhw2590582/flv-reader');
+
+    window.addEventListener('error', function(err) {
+        console.error(err.message);
+    });    
+
     function creatPlayer(url) {
         Flv.instances.forEach(function(flv) {
             flv.destroy();

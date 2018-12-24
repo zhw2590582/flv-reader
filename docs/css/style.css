@@ -10,6 +10,7 @@ html, body {
 }
 
 .part-left {
+    display: flex;
     width: 50%;
     flex-direction: column;
     border-right: 1px solid #ddd;
@@ -38,14 +39,23 @@ html, body {
 }
 
 .part-left .video-wrap {
-    padding: 15px 10px;
+    display: flex;
+    height: 600px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 30px;
     border-bottom: 1px solid #ddd;
     box-sizing: border-box;
 }
 
 .part-left .video-wrap video {
-    opacity: 0;
+    opacity: 0.1;
     width: 100%;
+}
+
+.part-left .console {
+    position: relative;
+    flex: 1;
 }
 
 .part-right {
