@@ -1,29 +1,23 @@
-import fetchStream from './fetchStream';
-import readFile from './readFile';
-import parseScripTag from './parseScripTag';
-import { mergeTypedArrays, getUint8Sum, bin2String } from '../utils';
+import { errorHandle, mergeTypedArrays, getUint8Sum, bin2String } from '../utils';
+import scripTag from './scripTag';
+import videoTag from './videoTag';
+import audioTag from './audioTag';
 
-export default class FlvParse {
+export default class Parse {
     constructor(flv) {
         this.flv = flv;
-        const { url, debug } = flv.options;
+        const { options: { url }, debug } = flv;
         this.uint8 = new Uint8Array(0);
         this.index = 0;
         this.header = null;
-        this.scripTag = null;
         this.tags = [];
-        this.done = false;
 
         flv.on('flvFetchStart', () => {
-            if (debug) {
-                console.log('[flv-fetch-start]', url);
-            }
+            debug.log('flv-fetch-start', url);
         });
 
         flv.on('flvFetchCancel', () => {
-            if (debug) {
-                console.log('[flv-fetch-cancel]');
-            }
+            debug.log('flv-fetch-cancel');
         });
 
         flv.on('flvFetching', uint8 => {
@@ -32,10 +26,8 @@ export default class FlvParse {
         });
 
         flv.on('flvFetchEnd', uint8 => {
-            if (debug) {
-                console.log('[flv-fetch-end]');
-            }
-            this.done = true;
+            flv.emit('flvFetchEnd');
+            debug.log('flv-fetch-end');
             if (uint8) {
                 this.uint8 = uint8;
                 this.index = 0;
@@ -45,32 +37,24 @@ export default class FlvParse {
                 this.parse();
             }
             flv.emit('flvParseDone');
-            if (debug) {
-                console.log('[flv-parse-done]');
-            }
+            debug.log('flv-parse-done');
         });
-
-        if (typeof url === 'string') {
-            fetchStream(flv, url);
-        } else {
-            readFile(flv, url);
-        }
     }
 
     parse() {
-        const { debug } = this.flv.options;
+        const { debug } = this.flv;
         if (this.uint8.length >= 13 && !this.header) {
             const header = Object.create(null);
             header.signature = bin2String(this.read(3));
+            errorHandle(header.signature === 'FLV', `[signature] expect 'FLV', but got ${header.signature}`);
             [header.version] = this.read(1);
+            errorHandle(header.version === 1, `[version] expect 1, but got ${header.version}`);
             [header.flags] = this.read(1);
             header.headersize = getUint8Sum(this.read(4));
             this.header = header;
             this.read(4);
             this.flv.emit('flvParseHeader', this.header);
-            if (debug) {
-                console.log('[flv-parse-header]', this.header);
-            }
+            debug.log('flv-parse-header', this.header);
         }
 
         while (this.index < this.uint8.length) {
@@ -85,11 +69,19 @@ export default class FlvParse {
 
             switch (tag.tagType) {
                 case 18:
-                    this.scripTag = parseScripTag(tag.body);
-                    this.flv.emit('flvParseScripTag', this.scripTag);
-                    if (debug) {
-                        console.log('[flv-parse-scrip-tag]', this.scripTag);
-                    }
+                    tag.meta = scripTag(tag.body);
+                    this.flv.emit('scripTagMeta', tag.meta);
+                    debug.log('scrip-tag-meta', tag.meta);
+                    break;
+                case 9:
+                    tag.meta = videoTag(tag.body);
+                    this.flv.emit('videoTagMeta', tag.meta);
+                    debug.log('video-tag-meta', tag.meta);
+                    break;
+                case 8:
+                    tag.meta = audioTag(tag.body);
+                    this.flv.emit('audioTagMeta', tag.meta);
+                    debug.log('audio-tag-meta', tag.meta);
                     break;
                 default:
                     break;

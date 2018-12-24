@@ -391,30 +391,65 @@
   });
 
   function checkSupport(options) {
+    var MP4H264MimeCodec = 'video/mp4; codecs="avc1.42001E, mp4a.40.2"';
+    var canPlay = options.mediaElement.canPlayType(MP4H264MimeCodec);
+    errorHandle(window.MediaSource && window.MediaSource.isTypeSupported(MP4H264MimeCodec) && (canPlay === 'probably' || canPlay === 'maybe'), "Unsupported MIME type or codec: ".concat(MP4H264MimeCodec));
+    errorHandle(typeof window.Promise === 'function', "Unsupported 'Promise' method");
+    errorHandle(typeof window.fetch === 'function', "Unsupported 'fetch' method");
+  }
+
+  function verification(options) {
     var mediaElement = options.mediaElement,
         url = options.url;
     errorHandle(mediaElement instanceof HTMLVideoElement, 'The first parameter is not a video tag element');
     errorHandle(typeof url === 'string' || url instanceof File && url.type === 'video/x-flv', 'The second parameter is not a string type or flv file');
-    var MP4H264MimeCodec = 'video/mp4; codecs="avc1.42001E, mp4a.40.2"';
-    var canPlay = mediaElement.canPlayType(MP4H264MimeCodec);
-    errorHandle(window.MediaSource && window.MediaSource.isTypeSupported(MP4H264MimeCodec) && (canPlay === 'probably' || canPlay === 'maybe'), "Unsupported MIME type or codec: ".concat(MP4H264MimeCodec));
-    errorHandle(typeof window.Promise === 'function', "Unsupported 'Promise' method");
-    errorHandle(typeof window.fetch === 'function', "Unsupported 'fetch' method");
-    errorHandle(typeof window.Worker === 'function', "Unsupported 'Worker' method");
-    errorHandle(typeof window.ReadableStream === 'function', "Unsupported 'ReadableStream' method");
   }
 
-  var EventProxy =
+  var Debug = function Debug(flv) {
+    classCallCheck(this, Debug);
+
+    var debug = flv.options.debug;
+
+    this.log = function (name) {
+      for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        args[_key - 1] = arguments[_key];
+      }
+
+      flv.emit.apply(flv, ['log', name].concat(args));
+
+      if (debug) {
+        var _console;
+
+        (_console = console).log.apply(_console, ["[".concat(name, "]")].concat(args));
+      }
+    };
+
+    this.warn = function (name) {
+      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+        args[_key2 - 1] = arguments[_key2];
+      }
+
+      flv.emit.apply(flv, ['warn', name].concat(args));
+
+      if (debug) {
+        var _console2;
+
+        (_console2 = console).warn.apply(_console2, ["[".concat(name, "]")].concat(args));
+      }
+    };
+  };
+
+  var Events =
   /*#__PURE__*/
   function () {
-    function EventProxy() {
-      classCallCheck(this, EventProxy);
+    function Events() {
+      classCallCheck(this, Events);
 
       this.destroyEvents = [];
       this.proxy = this.proxy.bind(this);
     }
 
-    createClass(EventProxy, [{
+    createClass(Events, [{
       key: "proxy",
       value: function proxy(target, name, callback) {
         var option = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
@@ -432,23 +467,23 @@
       }
     }]);
 
-    return EventProxy;
+    return Events;
   }();
 
-  var CreatWorker =
+  var Workers =
   /*#__PURE__*/
   function () {
-    function CreatWorker() {
-      classCallCheck(this, CreatWorker);
+    function Workers() {
+      classCallCheck(this, Workers);
 
       this.workers = new Map();
     }
 
-    createClass(CreatWorker, [{
+    createClass(Workers, [{
       key: "add",
       value: function add(name, fn) {
         if (!this.workers.has(name)) {
-          this.workers.set(name, CreatWorker.create(fn));
+          this.workers.set(name, Workers.create(fn));
         }
       }
     }, {
@@ -483,7 +518,7 @@
     }, {
       key: "create",
       value: function create(fn) {
-        var blob = new Blob([CreatWorker.fnToStr(fn)], {
+        var blob = new Blob([Workers.fnToStr(fn)], {
           type: 'application/javascript'
         });
         var objectURL = window.URL.createObjectURL(blob);
@@ -512,8 +547,14 @@
       }
     }]);
 
-    return CreatWorker;
+    return Workers;
   }();
+
+  var Stream = function Stream(flv) {
+    classCallCheck(this, Stream);
+
+    console.log(flv);
+  };
 
   var mse = {
     mediaSource: {
@@ -536,18 +577,18 @@
     mse: mse
   };
 
-  var CreatMediaSource =
+  var MSE =
   /*#__PURE__*/
   function () {
-    function CreatMediaSource(flv) {
-      classCallCheck(this, CreatMediaSource);
+    function MSE(flv) {
+      classCallCheck(this, MSE);
 
       this.flv = flv;
       this.creatUrl();
       this.eventBind();
     }
 
-    createClass(CreatMediaSource, [{
+    createClass(MSE, [{
       key: "creatUrl",
       value: function creatUrl() {
         var _this$flv = this.flv,
@@ -582,7 +623,7 @@
       }
     }]);
 
-    return CreatMediaSource;
+    return MSE;
   }();
 
   function _arrayWithHoles(arr) {
@@ -631,61 +672,7 @@
 
   var slicedToArray = _slicedToArray;
 
-  function fetchStream(flv, url) {
-    flv.emit('flvFetchStart');
-    fetch(url).then(function (response) {
-      errorHandle(response.ok && response.status >= 200 && response.status <= 299, "".concat(response.status, " ").concat(response.statusText));
-      var contentType = response.headers.get('content-type');
-      errorHandle(contentType.includes('x-flv'), 'The resource does not seem to be a flv file');
-      return new Response(new ReadableStream({
-        start: function start(controller) {
-          var reader = response.body.getReader();
-          flv.on('destroy', function () {
-            reader.cancel();
-          });
-          flv.on('readerCancel', function () {
-            reader.cancel();
-          });
-
-          (function read() {
-            reader.read().then(function (_ref) {
-              var done = _ref.done,
-                  value = _ref.value;
-
-              if (done) {
-                flv.emit('flvFetchEnd');
-                controller.close();
-                return;
-              }
-
-              flv.emit('flvFetching', new Uint8Array(value));
-              controller.enqueue(value);
-              read();
-            }).catch(function (error) {
-              throw error;
-            });
-          })();
-        },
-        cancel: function cancel() {
-          flv.emit('flvFetchCancel');
-        }
-      }));
-    });
-  }
-
-  function readFile(flv, file) {
-    flv.emit('flvFetchStart');
-    var proxy = flv.events.proxy;
-    var reader = new FileReader();
-    proxy(reader, 'load', function (e) {
-      var buffer = e.target.result;
-      var uint8 = new Uint8Array(buffer);
-      flv.emit('flvFetchEnd', uint8);
-    });
-    reader.readAsArrayBuffer(file);
-  }
-
-  function parseScripTag(scripTagBody) {
+  function scripTag(scripTagBody) {
     var readScripTag = readUint8(scripTagBody);
     var metadata = Object.create(null);
     var amf1 = Object.create(null);
@@ -705,7 +692,7 @@
     var _readScripTag4 = slicedToArray(_readScripTag3, 1);
 
     amf2.type = _readScripTag4[0];
-    errorHandle(amf2.type === 8, "AMF: [amf1] type expect 8, but got ".concat(amf2.type));
+    errorHandle(amf2.type === 8, "AMF: [amf2] type expect 8, but got ".concat(amf2.type));
     amf2.size = getUint8Sum(readScripTag(4));
     amf2.metaData = Object.create(null);
 
@@ -732,20 +719,18 @@
           case 3:
             {
               value = Object.create(null);
-              var endObject = false;
+              var lastType = -1;
 
-              while (!endObject && readScripTag.index < scripTagBody.length) {
+              while (lastType !== 9) {
                 var nameLength = getUint8Sum(readScripTag(2));
                 var name = bin2String(readScripTag(nameLength));
-                var _type = readScripTag(1)[0];
+                var itemType = readScripTag(1)[0];
 
                 if (name) {
-                  value[name] = getValue(_type);
+                  value[name] = getValue(itemType);
                 }
 
-                if (_type === 9) {
-                  endObject = true;
-                }
+                lastType = itemType;
               }
 
               break;
@@ -754,22 +739,21 @@
           case 8:
             {
               value = Object.create(null);
-              var endArray = false;
 
-              while (!endArray && readScripTag.index < scripTagBody.length) {
+              var _lastType = -1;
+
+              while (_lastType !== 9) {
                 var _nameLength = getUint8Sum(readScripTag(2));
 
                 var _name = bin2String(readScripTag(_nameLength));
 
-                var _type2 = readScripTag(1)[0];
+                var _itemType = readScripTag(1)[0];
 
                 if (_name) {
-                  value[_name] = getValue(_type2);
+                  value[_name] = getValue(_itemType);
                 }
 
-                if (_type2 === 9) {
-                  endArray = true;
-                }
+                _lastType = _itemType;
               }
 
               break;
@@ -782,8 +766,8 @@
               value = [];
 
               for (var index = 0; index < _valueLength; index += 1) {
-                var itemType = readScripTag(1)[0];
-                value.push(getValue(itemType));
+                var _itemType2 = readScripTag(1)[0];
+                value.push(getValue(_itemType2));
               }
 
               break;
@@ -798,7 +782,6 @@
             }
 
           default:
-            console.log(readScripTag(scripTagBody.length - readScripTag.index - 1));
             errorHandle(false, "AMF: Unknown metaData type: ".concat(type));
             break;
         }
@@ -824,33 +807,36 @@
     return metadata;
   }
 
-  var FlvParse =
+  function videoTag(videoTagBody) {
+    console.log(videoTagBody);
+    return {};
+  }
+
+  function audioTag(audioTagBody) {
+    console.log(audioTagBody);
+    return {};
+  }
+
+  var Parse =
   /*#__PURE__*/
   function () {
-    function FlvParse(flv) {
+    function Parse(flv) {
       var _this = this;
 
-      classCallCheck(this, FlvParse);
+      classCallCheck(this, Parse);
 
       this.flv = flv;
-      var _flv$options = flv.options,
-          url = _flv$options.url,
-          debug = _flv$options.debug;
+      var url = flv.options.url,
+          debug = flv.debug;
       this.uint8 = new Uint8Array(0);
       this.index = 0;
       this.header = null;
-      this.scripTag = null;
       this.tags = [];
-      this.done = false;
       flv.on('flvFetchStart', function () {
-        if (debug) {
-          console.log('[flv-fetch-start]', url);
-        }
+        debug.log('flv-fetch-start', url);
       });
       flv.on('flvFetchCancel', function () {
-        if (debug) {
-          console.log('[flv-fetch-cancel]');
-        }
+        debug.log('flv-fetch-cancel');
       });
       flv.on('flvFetching', function (uint8) {
         _this.uint8 = mergeTypedArrays(_this.uint8, uint8);
@@ -858,11 +844,8 @@
         _this.parse();
       });
       flv.on('flvFetchEnd', function (uint8) {
-        if (debug) {
-          console.log('[flv-fetch-end]');
-        }
-
-        _this.done = true;
+        flv.emit('flvFetchEnd');
+        debug.log('flv-fetch-end');
 
         if (uint8) {
           _this.uint8 = uint8;
@@ -875,33 +858,26 @@
         }
 
         flv.emit('flvParseDone');
-
-        if (debug) {
-          console.log('[flv-parse-done]');
-        }
+        debug.log('flv-parse-done');
       });
-
-      if (typeof url === 'string') {
-        fetchStream(flv, url);
-      } else {
-        readFile(flv, url);
-      }
     }
 
-    createClass(FlvParse, [{
+    createClass(Parse, [{
       key: "parse",
       value: function parse() {
-        var debug = this.flv.options.debug;
+        var debug = this.flv.debug;
 
         if (this.uint8.length >= 13 && !this.header) {
           var header = Object.create(null);
           header.signature = bin2String(this.read(3));
+          errorHandle(header.signature === 'FLV', "[signature] expect 'FLV', but got ".concat(header.signature));
 
           var _this$read = this.read(1);
 
           var _this$read2 = slicedToArray(_this$read, 1);
 
           header.version = _this$read2[0];
+          errorHandle(header.version === 1, "[version] expect 1, but got ".concat(header.version));
 
           var _this$read3 = this.read(1);
 
@@ -912,10 +888,7 @@
           this.header = header;
           this.read(4);
           this.flv.emit('flvParseHeader', this.header);
-
-          if (debug) {
-            console.log('[flv-parse-header]', this.header);
-          }
+          debug.log('flv-parse-header', this.header);
         }
 
         while (this.index < this.uint8.length) {
@@ -935,13 +908,21 @@
 
           switch (tag.tagType) {
             case 18:
-              this.scripTag = parseScripTag(tag.body);
-              this.flv.emit('flvParseScripTag', this.scripTag);
+              tag.meta = scripTag(tag.body);
+              this.flv.emit('scripTagMeta', tag.meta);
+              debug.log('scrip-tag-meta', tag.meta);
+              break;
 
-              if (debug) {
-                console.log('[flv-parse-scrip-tag]', this.scripTag);
-              }
+            case 9:
+              tag.meta = videoTag(tag.body);
+              this.flv.emit('videoTagMeta', tag.meta);
+              debug.log('video-tag-meta', tag.meta);
+              break;
 
+            case 8:
+              tag.meta = audioTag(tag.body);
+              this.flv.emit('audioTagMeta', tag.meta);
+              debug.log('audio-tag-meta', tag.meta);
               break;
 
             default:
@@ -965,7 +946,7 @@
       }
     }]);
 
-    return FlvParse;
+    return Parse;
   }();
 
   var id = 0;
@@ -982,11 +963,14 @@
 
       _this = possibleConstructorReturn(this, getPrototypeOf(Flv).call(this));
       _this.options = Object.assign({}, Flv.DEFAULTS, options);
+      verification(_this.options);
       checkSupport(_this.options);
-      _this.events = new EventProxy(assertThisInitialized(assertThisInitialized(_this)));
-      _this.workers = new CreatWorker(assertThisInitialized(assertThisInitialized(_this)));
-      _this.mediaSource = new CreatMediaSource(assertThisInitialized(assertThisInitialized(_this)));
-      _this.flvData = new FlvParse(assertThisInitialized(assertThisInitialized(_this)));
+      _this.debug = new Debug(assertThisInitialized(assertThisInitialized(_this)));
+      _this.events = new Events(assertThisInitialized(assertThisInitialized(_this)));
+      _this.workers = new Workers(assertThisInitialized(assertThisInitialized(_this)));
+      _this.parse = new Parse(assertThisInitialized(assertThisInitialized(_this)));
+      _this.stream = new Stream(assertThisInitialized(assertThisInitialized(_this)));
+      _this.mse = new MSE(assertThisInitialized(assertThisInitialized(_this)));
       id += 1;
       _this.id = id;
       Flv.instances.push(assertThisInitialized(assertThisInitialized(_this)));

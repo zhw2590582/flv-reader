@@ -1,6 +1,6 @@
 import { getUint8Sum, readUint8, bin2String, bin2Boolean, bin2Float, errorHandle } from '../utils';
 
-export default function parseScripTag(scripTagBody) {
+export default function scripTag(scripTagBody) {
     const readScripTag = readUint8(scripTagBody);
     const metadata = Object.create(null);
     const amf1 = Object.create(null);
@@ -74,7 +74,6 @@ export default function parseScripTag(scripTagBody) {
                     break;
                 }
                 default:
-                    console.log(readScripTag(scripTagBody.length - readScripTag.index - 1));
                     errorHandle(false, `AMF: Unknown metaData type: ${type}`);
                     break;
             }

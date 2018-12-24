@@ -9,6 +9,26 @@
     <link rel="stylesheet" type="text/css" media="screen" href="./css/style.css" />
 </head>
 <body>
+    <div class="container">
+        <div class="part-left">
+            <div class="controller">
+                <div class="controller-left">
+                    <input class="urlInput" type="text" placeholder="flv url" value="./video/again.flv">
+                    <input class="fileInput" type="file">
+                </div>
+                <div class="controller-right">
+                    <input class="playBtn" type="button" value="Play">
+                </div>
+            </div>
+            <div class="video-wrap">
+                <video id="video" controls></video>
+            </div>
+            <div class="console"></div>
+        </div>
+        <div class="part-right">
+            <div class="parse"></div>
+        </div>
+    </div>
     <script src="./uncompiled/flv-reader.js"></script>
     <script src="./js/common.js"></script>
 </body>
