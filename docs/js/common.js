@@ -1,18 +1,26 @@
-(function () {
+(function() {
     var $video = document.querySelector('#video');
     var $urlInput = document.querySelector('.urlInput');
     var $playBtn = document.querySelector('.playBtn');
     var $fileInput = document.querySelector('.fileInput');
+    var $jsonTree = document.querySelector('.jsonTree');
 
     function creatPlayer(url) {
         Flv.instances.forEach(function(flv) {
             flv.destroy();
         });
 
-        new Flv({
+        var flv = new Flv({
             mediaElement: $video,
             url: url,
-            debug: true
+            debug: true,
+        });
+
+        $jsonTree.innerHTML = '';
+        flv.on('scripTagMeta', function(meta) {
+            jsonTree.create(meta.amf2.metaData, $jsonTree).expand(function(node) {
+                return node.childNodes.length < 10;
+             });
         });
     }
 
@@ -25,5 +33,4 @@
         const file = $fileInput.files[0];
         creatPlayer(file);
     });
-
 })();

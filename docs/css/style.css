@@ -49,9 +49,7 @@ html, body {
 }
 
 .part-right {
-    display: flex;
-    flex-direction: column;
     flex: 1;
-    padding: 15px 10px;
-    box-sizing: border-box;
+    height: 100%;
+    overflow-y: auto;
 }
