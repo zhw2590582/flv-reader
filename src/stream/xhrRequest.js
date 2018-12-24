@@ -1,11 +1,14 @@
 import { createAbortError } from '../utils';
 
 export default function xhrRequest(flv, url) {
-    const { proxy } = flv.events;
+    const { events: { proxy }, options: { headers } } = flv;
     const textEncoder = new TextEncoder();
     const xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
     xhr.responseType = 'text';
+    Object.keys(headers).forEach(key => {
+        xhr.setRequestHeader(key, headers[key]);
+    });
     let index = 0;
 
     proxy(xhr, 'readystatechange', () => {

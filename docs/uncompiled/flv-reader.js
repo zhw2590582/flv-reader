@@ -561,7 +561,9 @@
 
   function fetchRequest(flv, url) {
     flv.emit('flvFetchStart');
-    fetch(url).then(function (response) {
+    fetch(url, {
+      headers: flv.options.headers
+    }).then(function (response) {
       var reader = response.body.getReader();
       flv.on('destroy', function () {
         reader.cancel();
@@ -1303,7 +1305,8 @@
         return {
           mediaElement: '',
           url: '',
-          debug: false
+          debug: false,
+          headers: {}
         };
       }
     }, {
