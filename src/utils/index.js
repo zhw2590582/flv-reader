@@ -45,10 +45,6 @@ export function bin2Boolean(bin) {
     return bin === 1;
 }
 
-export function log(name, msg = '') {
-    console.log(`[${name}] ${msg}`);
-}
-
 export function readUint8(uint8) {
     let index = 0;
     return function read(length) {
@@ -60,6 +56,10 @@ export function readUint8(uint8) {
         read.index = index;
         return tempUint8;
     };
+}
+
+export function prefixInteger(num, length) {
+    return (Array(length).join('0') + num).slice(-length);
 }
 
 export function createAbortError() {

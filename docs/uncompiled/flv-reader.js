@@ -358,10 +358,6 @@
   function bin2Boolean(bin) {
     return bin === 1;
   }
-  function log(name) {
-    var msg = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
-    console.log("[".concat(name, "] ").concat(msg));
-  }
   function readUint8(uint8) {
     var index = 0;
     return function read(length) {
@@ -375,6 +371,9 @@
       read.index = index;
       return tempUint8;
     };
+  }
+  function prefixInteger(num, length) {
+    return (Array(length).join('0') + num).slice(-length);
   }
   function createAbortError() {
     try {
@@ -395,8 +394,8 @@
     bin2String: bin2String,
     bin2Float: bin2Float,
     bin2Boolean: bin2Boolean,
-    log: log,
     readUint8: readUint8,
+    prefixInteger: prefixInteger,
     createAbortError: createAbortError
   });
 
@@ -728,8 +727,19 @@
     }
   };
 
+  var flv = {
+    header: {},
+    scripTag: {},
+    audioTag: {},
+    videoTag: {}
+  };
+
+  var mp4 = {};
+
   var config = {
-    mse: mse
+    mse: mse,
+    flv: flv,
+    mp4: mp4
   };
 
   var MSE =
@@ -963,11 +973,27 @@
   }
 
   function videoTag(videoTagBody) {
-    return {};
+    var metaData = prefixInteger(videoTagBody[0].toString(2), 8);
+    var frameType = parseInt(metaData.slice(0, 4), 2);
+    var codecID = parseInt(metaData.slice(4), 2);
+    return {
+      frameType: frameType,
+      codecID: codecID
+    };
   }
 
   function audioTag(audioTagBody) {
-    return {};
+    var metaData = prefixInteger(audioTagBody[0].toString(2), 8);
+    var soundFormat = parseInt(metaData.slice(0, 4), 2);
+    var soundRate = parseInt(metaData.slice(0, 2), 2);
+    var soundSize = parseInt(metaData.slice(0, 1), 2);
+    var soundType = parseInt(metaData.slice(0, 1), 2);
+    return {
+      soundFormat: soundFormat,
+      soundRate: soundRate,
+      soundSize: soundSize,
+      soundType: soundType
+    };
   }
 
   var Parse =
@@ -1067,14 +1093,10 @@
 
             case 9:
               tag.meta = videoTag(tag.body);
-              this.flv.emit('videoTagMeta', tag.meta); // debug.log('video-tag-meta', tag.meta);
-
               break;
 
             case 8:
               tag.meta = audioTag(tag.body);
-              this.flv.emit('audioTagMeta', tag.meta); // debug.log('audio-tag-meta', tag.meta);
-
               break;
 
             default:

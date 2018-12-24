@@ -77,13 +77,9 @@ export default class Parse {
                     break;
                 case 9:
                     tag.meta = videoTag(tag.body);
-                    this.flv.emit('videoTagMeta', tag.meta);
-                    // debug.log('video-tag-meta', tag.meta);
                     break;
                 case 8:
                     tag.meta = audioTag(tag.body);
-                    this.flv.emit('audioTagMeta', tag.meta);
-                    // debug.log('audio-tag-meta', tag.meta);
                     break;
                 default:
                     break;
