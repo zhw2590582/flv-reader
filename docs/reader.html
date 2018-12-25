@@ -7,12 +7,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" media="screen" href="./css/normalize.css" />
     <link rel="stylesheet" type="text/css" media="screen" href="./css/reader.css" />
+    <link rel="stylesheet" type="text/css" media="screen" href="./css/jsonTree.css" />
 </head>
 <body>
     <div class="container">
-        reader
+        <div class="header">
+            <input
+                class="urlInput"
+                type="text"
+                placeholder="Enter the flv address"
+                value="./video/again.flv"
+            >
+            <input class="loadBtn" type="button" value="Load">
+        </div>
+        <div class="main">
+            <div class="binary">
+                <div class="binaryHeader">
+                    <span>1</span>
+                    <span>2</span>
+                    <span>3</span>
+                    <span>4</span>
+                    <span>5</span>
+                    <span>6</span>
+                    <span>7</span>
+                    <span>8</span>
+                    <span>9</span>
+                    <span>A</span>
+                    <span>B</span>
+                    <span>C</span>
+                    <span>D</span>
+                    <span>E</span>
+                    <span>F</span>
+                    <span>E</span>
+                </div>
+                <div class="binaryBody"></div>
+                <div class="binaryBottom">
+                    <div class="item">State: <span class="state">complete</span></div>
+                    <div class="item">Index: <span class="index">0</span></div>
+                    <div class="item">Decimal: <span class="decimal">0</span></div>
+                    <div class="item">Ascii: <span class="ascii">0</span></div>
+                </div>
+            </div>
+            <div class="info">
+                <div class="jsonTree"></div>
+            </div>
+        </div>
     </div>
     <script src="./uncompiled/flv-reader.js"></script>
+    <script src="./js/jsonTree.js"></script>
     <script src="./js/reader.js"></script>
 </body>
 </html>
