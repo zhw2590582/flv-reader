@@ -1,4 +1,5 @@
-import { errorHandle, mergeTypedArrays, getUint8Sum, bin2String } from '../utils';
+import { errorHandle } from '../utils';
+import { mergeBuffer, readBufferSum, readString } from '../utils/buffer';
 import scripTag from './scripTag';
 import videoTag from './videoTag';
 import audioTag from './audioTag';
@@ -24,7 +25,7 @@ export default class Parse {
         });
 
         flv.on('flvFetching', uint8 => {
-            this.uint8 = mergeTypedArrays(this.uint8, uint8);
+            this.uint8 = mergeBuffer(this.uint8, uint8);
             this.parse();
         });
 
@@ -47,12 +48,11 @@ export default class Parse {
         const { debug } = this.flv;
         if (this.uint8.length >= 13 && !this.header) {
             const header = Object.create(null);
-            header.signature = bin2String(this.read(3));
-            errorHandle(header.signature === 'FLV', `[signature] expect 'FLV', but got ${header.signature}`);
+            header.signature = readString(this.read(3));
             [header.version] = this.read(1);
-            errorHandle(header.version === 1, `[version] expect 1, but got ${header.version}`);
+            errorHandle(header.signature === 'FLV' && header.version === 1, 'FLV header not found');
             [header.flags] = this.read(1);
-            header.headersize = getUint8Sum(this.read(4));
+            header.headersize = readBufferSum(this.read(4));
             this.header = header;
             this.read(4);
             this.flv.emit('flvParseHeader', this.header);
@@ -62,7 +62,7 @@ export default class Parse {
         while (this.index < this.uint8.length) {
             const tag = Object.create(null);
             [tag.tagType] = this.read(1);
-            tag.dataSize = getUint8Sum(this.read(3));
+            tag.dataSize = readBufferSum(this.read(3));
             tag.timestamp = this.read(4);
             tag.streamID = this.read(3);
             tag.body = this.read(tag.dataSize);

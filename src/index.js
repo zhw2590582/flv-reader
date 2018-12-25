@@ -7,6 +7,7 @@ import Workers from './workers';
 import Stream from './stream';
 import MSE from './mse';
 import Parse from './parse';
+import Transmuxer from './transmuxer';
 import * as utils from './utils';
 import config from './config';
 
@@ -21,6 +22,7 @@ class Flv extends Emitter {
         this.events = new Events(this);
         this.workers = new Workers(this);
         this.parse = new Parse(this);
+        this.transmuxer = new Transmuxer(this);
         this.stream = new Stream(this);
         this.mse = new MSE(this);
         id += 1;

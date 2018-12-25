@@ -181,36 +181,6 @@
 
   var tinyEmitter = E;
 
-  function _arrayWithoutHoles(arr) {
-    if (Array.isArray(arr)) {
-      for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) {
-        arr2[i] = arr[i];
-      }
-
-      return arr2;
-    }
-  }
-
-  var arrayWithoutHoles = _arrayWithoutHoles;
-
-  function _iterableToArray(iter) {
-    if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter);
-  }
-
-  var iterableToArray = _iterableToArray;
-
-  function _nonIterableSpread() {
-    throw new TypeError("Invalid attempt to spread non-iterable instance");
-  }
-
-  var nonIterableSpread = _nonIterableSpread;
-
-  function _toConsumableArray(arr) {
-    return arrayWithoutHoles(arr) || iterableToArray(arr) || nonIterableSpread();
-  }
-
-  var toConsumableArray = _toConsumableArray;
-
   function _isNativeFunction(fn) {
     return Function.toString.call(fn).indexOf("[native code]") !== -1;
   }
@@ -317,60 +287,11 @@
       throw new FlvError(msg);
     }
   }
-  function mergeTypedArrays(a, b) {
-    var c = new a.constructor(a.length + b.length);
-    c.set(a);
-    c.set(b, a.length);
-    return c;
-  }
   function sleep() {
     var ms = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
     return new Promise(function (resolve) {
       return setTimeout(resolve, ms);
     });
-  }
-  function getUint8Sum(arr) {
-    return arr.reduce(function (totle, num, index) {
-      return totle + num * Math.pow(256, arr.length - index - 1);
-    }, 0);
-  }
-  function string2Bin(str) {
-    var result = [];
-
-    for (var i = 0; i < str.length; i += 1) {
-      result.push(Number(str.charCodeAt(i).toString(10)));
-    }
-
-    return result;
-  }
-  function bin2String(array) {
-    var _String$fromCharCode;
-
-    return (_String$fromCharCode = String.fromCharCode).call.apply(_String$fromCharCode, [String].concat(toConsumableArray(array)));
-  }
-  function bin2Float(array) {
-    var view = new DataView(new ArrayBuffer(array.length));
-    array.forEach(function (b, i) {
-      view.setUint8(i, b);
-    });
-    return view.getFloat64(0);
-  }
-  function bin2Boolean(bin) {
-    return bin === 1;
-  }
-  function readUint8(uint8) {
-    var index = 0;
-    return function read(length) {
-      var tempUint8 = new Uint8Array(length);
-
-      for (var i = 0; i < length; i += 1) {
-        tempUint8[i] = uint8[index];
-        index += 1;
-      }
-
-      read.index = index;
-      return tempUint8;
-    };
   }
   function prefixInteger(num, length) {
     return (Array(length).join('0') + num).slice(-length);
@@ -387,14 +308,7 @@
 
   var utils = /*#__PURE__*/Object.freeze({
     errorHandle: errorHandle,
-    mergeTypedArrays: mergeTypedArrays,
     sleep: sleep,
-    getUint8Sum: getUint8Sum,
-    string2Bin: string2Bin,
-    bin2String: bin2String,
-    bin2Float: bin2Float,
-    bin2Boolean: bin2Boolean,
-    readUint8: readUint8,
     prefixInteger: prefixInteger,
     createAbortError: createAbortError
   });
@@ -874,10 +788,17 @@
 
   var mp4 = {};
 
+  var video = {
+    propertys: ['audioTracks', 'autoplay', 'buffered', 'controller', 'controls', 'crossOrigin', 'currentSrc', 'currentTime', 'defaultMuted', 'defaultPlaybackRate', 'duration', 'ended', 'error', 'loop', 'mediaGroup', 'muted', 'networkState', 'paused', 'playbackRate', 'played', 'preload', 'readyState', 'seekable', 'seeking', 'src', 'startDate', 'textTracks', 'videoTracks', 'volume'],
+    methods: ['addTextTrack', 'canPlayType', 'load', 'play', 'pause'],
+    events: ['abort', 'canplay', 'canplaythrough', 'durationchange', 'emptied', 'ended', 'error', 'loadeddata', 'loadedmetadata', 'loadstart', 'pause', 'play', 'playing', 'progress', 'ratechange', 'seeked', 'seeking', 'stalled', 'suspend', 'timeupdate', 'volumechange', 'waiting']
+  };
+
   var config = {
     mse: mse,
     flv: flv,
-    mp4: mp4
+    mp4: mp4,
+    video: video
   };
 
   var MSE =
@@ -975,8 +896,79 @@
 
   var slicedToArray = _slicedToArray;
 
+  function _arrayWithoutHoles(arr) {
+    if (Array.isArray(arr)) {
+      for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) {
+        arr2[i] = arr[i];
+      }
+
+      return arr2;
+    }
+  }
+
+  var arrayWithoutHoles = _arrayWithoutHoles;
+
+  function _iterableToArray(iter) {
+    if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter);
+  }
+
+  var iterableToArray = _iterableToArray;
+
+  function _nonIterableSpread() {
+    throw new TypeError("Invalid attempt to spread non-iterable instance");
+  }
+
+  var nonIterableSpread = _nonIterableSpread;
+
+  function _toConsumableArray(arr) {
+    return arrayWithoutHoles(arr) || iterableToArray(arr) || nonIterableSpread();
+  }
+
+  var toConsumableArray = _toConsumableArray;
+
+  function readBuffer(buffer) {
+    var index = 0;
+    return function read(length) {
+      var tempUint8 = new Uint8Array(length);
+
+      for (var i = 0; i < length; i += 1) {
+        tempUint8[i] = buffer[index];
+        index += 1;
+      }
+
+      read.index = index;
+      return tempUint8;
+    };
+  }
+  function mergeBuffer(a, b) {
+    var c = new a.constructor(a.length + b.length);
+    c.set(a);
+    c.set(b, a.length);
+    return c;
+  }
+  function readDouble(array) {
+    var view = new DataView(new ArrayBuffer(array.length));
+    array.forEach(function (b, i) {
+      view.setUint8(i, b);
+    });
+    return view.getFloat64(0);
+  }
+  function readBoolean(array) {
+    return array[0] !== 0;
+  }
+  function readString(array) {
+    var _String$fromCharCode;
+
+    return (_String$fromCharCode = String.fromCharCode).call.apply(_String$fromCharCode, [String].concat(toConsumableArray(array)));
+  }
+  function readBufferSum(array) {
+    return array.reduce(function (totle, num, index) {
+      return totle + num * Math.pow(256, array.length - index - 1);
+    }, 0);
+  }
+
   function scripTag(scripTagBody) {
-    var readScripTag = readUint8(scripTagBody);
+    var readScripTag = readBuffer(scripTagBody);
     var metadata = Object.create(null);
     var amf1 = Object.create(null);
     var amf2 = Object.create(null);
@@ -987,8 +979,8 @@
 
     amf1.type = _readScripTag2[0];
     errorHandle(amf1.type === 2, "AMF: [amf1] type expect 2, but got ".concat(amf1.type));
-    amf1.size = getUint8Sum(readScripTag(2));
-    amf1.string = bin2String(readScripTag(amf1.size));
+    amf1.size = readBufferSum(readScripTag(2));
+    amf1.string = readString(readScripTag(amf1.size));
 
     var _readScripTag3 = readScripTag(1);
 
@@ -996,7 +988,7 @@
 
     amf2.type = _readScripTag4[0];
     errorHandle(amf2.type === 8, "AMF: [amf2] type expect 8, but got ".concat(amf2.type));
-    amf2.size = getUint8Sum(readScripTag(4));
+    amf2.size = readBufferSum(readScripTag(4));
     amf2.metaData = Object.create(null);
 
     function getValue(type) {
@@ -1005,17 +997,17 @@
       if (type !== undefined) {
         switch (type) {
           case 0:
-            value = bin2Float(readScripTag(8));
+            value = readDouble(readScripTag(8));
             break;
 
           case 1:
-            value = bin2Boolean(readScripTag(1)[0]);
+            value = readBoolean(readScripTag(1));
             break;
 
           case 2:
             {
-              var valueLength = getUint8Sum(readScripTag(2));
-              value = bin2String(readScripTag(valueLength));
+              var valueLength = readBufferSum(readScripTag(2));
+              value = readString(readScripTag(valueLength));
               break;
             }
 
@@ -1025,8 +1017,8 @@
               var lastType = -1;
 
               while (lastType !== 9) {
-                var nameLength = getUint8Sum(readScripTag(2));
-                var name = bin2String(readScripTag(nameLength));
+                var nameLength = readBufferSum(readScripTag(2));
+                var name = readString(readScripTag(nameLength));
                 var itemType = readScripTag(1)[0];
 
                 if (name) {
@@ -1039,6 +1031,19 @@
               break;
             }
 
+          case 5:
+            value = null;
+            break;
+
+          case 6:
+            value = undefined;
+            break;
+
+          case 7:
+            value = "Reference #".concat(readScripTag.index);
+            readScripTag(2);
+            break;
+
           case 8:
             {
               value = Object.create(null);
@@ -1046,9 +1051,9 @@
               var _lastType = -1;
 
               while (_lastType !== 9) {
-                var _nameLength = getUint8Sum(readScripTag(2));
+                var _nameLength = readBufferSum(readScripTag(2));
 
-                var _name = bin2String(readScripTag(_nameLength));
+                var _name = readString(readScripTag(_nameLength));
 
                 var _itemType = readScripTag(1)[0];
 
@@ -1064,7 +1069,7 @@
 
           case 10:
             {
-              var _valueLength = getUint8Sum(readScripTag(4));
+              var _valueLength = readBufferSum(readScripTag(4));
 
               value = [];
 
@@ -1076,11 +1081,15 @@
               break;
             }
 
+          case 11:
+            value = readDouble(readScripTag(2));
+            break;
+
           case 12:
             {
-              var _valueLength2 = getUint8Sum(readScripTag(4));
+              var _valueLength2 = readBufferSum(readScripTag(4));
 
-              value = bin2String(readScripTag(_valueLength2));
+              value = readString(readScripTag(_valueLength2));
               break;
             }
 
@@ -1094,8 +1103,8 @@
     }
 
     while (readScripTag.index < scripTagBody.length) {
-      var nameLength = getUint8Sum(readScripTag(2));
-      var name = bin2String(readScripTag(nameLength));
+      var nameLength = readBufferSum(readScripTag(2));
+      var name = readString(readScripTag(nameLength));
       var type = readScripTag(1)[0];
 
       if (name) {
@@ -1156,7 +1165,7 @@
         debug.log('flv-fetch-cancel');
       });
       flv.on('flvFetching', function (uint8) {
-        _this.uint8 = mergeTypedArrays(_this.uint8, uint8);
+        _this.uint8 = mergeBuffer(_this.uint8, uint8);
 
         _this.parse();
       });
@@ -1185,22 +1194,21 @@
 
         if (this.uint8.length >= 13 && !this.header) {
           var header = Object.create(null);
-          header.signature = bin2String(this.read(3));
-          errorHandle(header.signature === 'FLV', "[signature] expect 'FLV', but got ".concat(header.signature));
+          header.signature = readString(this.read(3));
 
           var _this$read = this.read(1);
 
           var _this$read2 = slicedToArray(_this$read, 1);
 
           header.version = _this$read2[0];
-          errorHandle(header.version === 1, "[version] expect 1, but got ".concat(header.version));
+          errorHandle(header.signature === 'FLV' && header.version === 1, 'FLV header not found');
 
           var _this$read3 = this.read(1);
 
           var _this$read4 = slicedToArray(_this$read3, 1);
 
           header.flags = _this$read4[0];
-          header.headersize = getUint8Sum(this.read(4));
+          header.headersize = readBufferSum(this.read(4));
           this.header = header;
           this.read(4);
           this.flv.emit('flvParseHeader', this.header);
@@ -1215,7 +1223,7 @@
           var _this$read6 = slicedToArray(_this$read5, 1);
 
           tag.tagType = _this$read6[0];
-          tag.dataSize = getUint8Sum(this.read(3));
+          tag.dataSize = readBufferSum(this.read(3));
           tag.timestamp = this.read(4);
           tag.streamID = this.read(3);
           tag.body = this.read(tag.dataSize);
@@ -1261,6 +1269,72 @@
     return Parse;
   }();
 
+  var Transmuxer =
+  /*#__PURE__*/
+  function () {
+    function Transmuxer(flv) {
+      var _this = this;
+
+      classCallCheck(this, Transmuxer);
+
+      this.audio = {
+        soundFormats: [],
+        soundRates: [],
+        soundSizes: [],
+        soundTypes: [],
+        data: new Uint8Array(0)
+      };
+      this.video = {
+        frameTypes: [],
+        codecIDs: [],
+        data: new Uint8Array(0)
+      };
+      flv.on('flvParseTag', function (tag) {
+        switch (tag.tagType) {
+          case 9:
+            Transmuxer.mergeAttr(_this.video.frameTypes, tag.meta.frameType);
+            Transmuxer.mergeAttr(_this.video.codecIDs, tag.meta.codecID);
+            _this.video.data = mergeBuffer(_this.video.data, tag.body.slice(1));
+            break;
+
+          case 8:
+            Transmuxer.mergeAttr(_this.audio.soundFormats, tag.meta.soundFormat);
+            Transmuxer.mergeAttr(_this.audio.soundRates, tag.meta.soundRate);
+            Transmuxer.mergeAttr(_this.audio.soundSizes, tag.meta.soundSize);
+            Transmuxer.mergeAttr(_this.audio.soundTypes, tag.meta.soundType);
+            _this.audio.data = mergeBuffer(_this.audio.data, tag.body.slice(1));
+            break;
+
+          default:
+            break;
+        }
+      });
+    }
+
+    createClass(Transmuxer, [{
+      key: "download",
+      value: function download() {
+        var elink = document.createElement('a');
+        elink.href = URL.createObjectURL(new Blob(this.audio.data, {
+          type: 'audio/aac'
+        }));
+        elink.download = 'name.aac';
+        document.body.appendChild(elink);
+        elink.click();
+        document.body.removeChild(elink);
+      }
+    }], [{
+      key: "mergeAttr",
+      value: function mergeAttr(arr, item) {
+        if (arr.indexOf(item) === -1) {
+          arr.push(item);
+        }
+      }
+    }]);
+
+    return Transmuxer;
+  }();
+
   var id = 0;
 
   var Flv =
@@ -1281,6 +1355,7 @@
       _this.events = new Events(assertThisInitialized(assertThisInitialized(_this)));
       _this.workers = new Workers(assertThisInitialized(assertThisInitialized(_this)));
       _this.parse = new Parse(assertThisInitialized(assertThisInitialized(_this)));
+      _this.transmuxer = new Transmuxer(assertThisInitialized(assertThisInitialized(_this)));
       _this.stream = new Stream(assertThisInitialized(assertThisInitialized(_this)));
       _this.mse = new MSE(assertThisInitialized(assertThisInitialized(_this)));
       id += 1;

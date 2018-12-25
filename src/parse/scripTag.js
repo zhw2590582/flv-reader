@@ -1,19 +1,20 @@
-import { getUint8Sum, readUint8, bin2String, bin2Boolean, bin2Float, errorHandle } from '../utils';
+import { errorHandle } from '../utils';
+import { readBuffer, readDouble, readBoolean, readString, readBufferSum } from '../utils/buffer';
 
 export default function scripTag(scripTagBody) {
-    const readScripTag = readUint8(scripTagBody);
+    const readScripTag = readBuffer(scripTagBody);
     const metadata = Object.create(null);
     const amf1 = Object.create(null);
     const amf2 = Object.create(null);
 
     [amf1.type] = readScripTag(1);
     errorHandle(amf1.type === 2, `AMF: [amf1] type expect 2, but got ${amf1.type}`);
-    amf1.size = getUint8Sum(readScripTag(2));
-    amf1.string = bin2String(readScripTag(amf1.size));
+    amf1.size = readBufferSum(readScripTag(2));
+    amf1.string = readString(readScripTag(amf1.size));
 
     [amf2.type] = readScripTag(1);
     errorHandle(amf2.type === 8, `AMF: [amf2] type expect 8, but got ${amf2.type}`);
-    amf2.size = getUint8Sum(readScripTag(4));
+    amf2.size = readBufferSum(readScripTag(4));
     amf2.metaData = Object.create(null);
 
     function getValue(type) {
@@ -21,22 +22,22 @@ export default function scripTag(scripTagBody) {
         if (type !== undefined) {
             switch (type) {
                 case 0:
-                    value = bin2Float(readScripTag(8));
+                    value = readDouble(readScripTag(8));
                     break;
                 case 1:
-                    value = bin2Boolean(readScripTag(1)[0]);
+                    value = readBoolean(readScripTag(1));
                     break;
                 case 2: {
-                    const valueLength = getUint8Sum(readScripTag(2));
-                    value = bin2String(readScripTag(valueLength));
+                    const valueLength = readBufferSum(readScripTag(2));
+                    value = readString(readScripTag(valueLength));
                     break;
                 }
                 case 3: {
                     value = Object.create(null);
                     let lastType = -1;
                     while (lastType !== 9) {
-                        const nameLength = getUint8Sum(readScripTag(2));
-                        const name = bin2String(readScripTag(nameLength));
+                        const nameLength = readBufferSum(readScripTag(2));
+                        const name = readString(readScripTag(nameLength));
                         const itemType = readScripTag(1)[0];
                         if (name) {
                             value[name] = getValue(itemType);
@@ -45,12 +46,22 @@ export default function scripTag(scripTagBody) {
                     }
                     break;
                 }
+                case 5:
+                    value = null;
+                    break;
+                case 6:
+                    value = undefined;
+                    break;
+                case 7:
+                    value = `Reference #${readScripTag.index}`;
+                    readScripTag(2);
+                    break;
                 case 8: {
                     value = Object.create(null);
                     let lastType = -1;
                     while (lastType !== 9) {
-                        const nameLength = getUint8Sum(readScripTag(2));
-                        const name = bin2String(readScripTag(nameLength));
+                        const nameLength = readBufferSum(readScripTag(2));
+                        const name = readString(readScripTag(nameLength));
                         const itemType = readScripTag(1)[0];
                         if (name) {
                             value[name] = getValue(itemType);
@@ -60,7 +71,7 @@ export default function scripTag(scripTagBody) {
                     break;
                 }
                 case 10: {
-                    const valueLength = getUint8Sum(readScripTag(4));
+                    const valueLength = readBufferSum(readScripTag(4));
                     value = [];
                     for (let index = 0; index < valueLength; index += 1) {
                         const itemType = readScripTag(1)[0];
@@ -68,9 +79,12 @@ export default function scripTag(scripTagBody) {
                     }
                     break;
                 }
+                case 11:
+                    value = readDouble(readScripTag(2));
+                    break;
                 case 12: {
-                    const valueLength = getUint8Sum(readScripTag(4));
-                    value = bin2String(readScripTag(valueLength));
+                    const valueLength = readBufferSum(readScripTag(4));
+                    value = readString(readScripTag(valueLength));
                     break;
                 }
                 default:
@@ -82,8 +96,8 @@ export default function scripTag(scripTagBody) {
     }
 
     while (readScripTag.index < scripTagBody.length) {
-        const nameLength = getUint8Sum(readScripTag(2));
-        const name = bin2String(readScripTag(nameLength));
+        const nameLength = readBufferSum(readScripTag(2));
+        const name = readString(readScripTag(nameLength));
         const type = readScripTag(1)[0];
         if (name) {
             amf2.metaData[name] = getValue(type);
