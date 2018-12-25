@@ -59,6 +59,7 @@ export default class Parse {
 
         while (this.index < this.uint8.length) {
             const tag = Object.create(null);
+            const startIndex = this.index;
             [tag.tagType] = this.read(1);
             tag.dataSize = readBufferSum(this.read(3));
             tag.timestamp = this.read(4);
@@ -84,7 +85,7 @@ export default class Parse {
                     break;
             }
 
-            this.flv.emit('flvParseTag', tag);
+            this.flv.emit('flvParseTag', tag, startIndex, this.index);
         }
     }
 

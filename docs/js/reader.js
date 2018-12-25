@@ -1,16 +1,15 @@
-(function() {
+(function () {
     var $urlInput = document.querySelector('.urlInput');
     var $loadBtn = document.querySelector('.loadBtn');
     var $binaryBody = document.querySelector('.binaryBody');
+    var $range = document.querySelector('.range');
     var $state = document.querySelector('.state');
     var $index = document.querySelector('.index');
     var $decimal = document.querySelector('.decimal');
     var $ascii = document.querySelector('.ascii');
     var $jsonTree = document.querySelector('.jsonTree');
-    var allData = new Uint8Array(0);
-    var loadIndex = 0;
-
-    console.info('For more information please print: Flv.instances[0]')
+    var flvData = new Uint8Array(0);
+    var lastRange = [];
 
     function mergeBuffer(a, b) {
         const c = new a.constructor(a.length + b.length);
@@ -19,29 +18,27 @@
         return c;
     }
 
-    function showBinary(arr) {
-        if (loadIndex !== 0) return;
-        var html = '';
-        arr.forEach(function(item, index) {
-            html +=
-                '<span data-ascii="' +
-                String.fromCharCode(item) +
-                '" data-decimal="' +
-                item +
-                '" data-index="' +
-                (loadIndex + index) +
-                '">' +
-                item.toString(16).toUpperCase() +
-                '</span>';
-        });
-        $binaryBody.insertAdjacentHTML('beforeend', html);
-        loadIndex += arr.length;
+    function showBinary() {
+        var range = $range.value.split('-').map(Number);
+        if (range[0] !== lastRange[0] && range[1] !== lastRange[1]) {
+            var html = '';
+            var arr = flvData.slice(range[0], range[1]);
+            arr.forEach(function (item, index) {
+                var asciiStr = String.fromCharCode(item);
+                var hexNum = item.toString(16).toUpperCase();
+                hexNum = hexNum.length === 1 ? '0' + hexNum : hexNum;
+                var indexNum = range[0] + index;
+                html += `<span data-index="${indexNum}" data-ascii="${asciiStr}" data-decimal="${item}">${hexNum}</span>`;
+            });
+            $binaryBody.innerHTML = html;
+            lastRange = range;
+        }
     }
 
     function creatPlayer(url) {
-        allData = new Uint8Array(0);
-        loadIndex = 0;
-        Flv.instances.forEach(function(flv) {
+        flvData = new Uint8Array(0);
+        lastRange = [];
+        Flv.instances.forEach(function (flv) {
             flv.destroy();
         });
 
@@ -50,28 +47,44 @@
             url: url,
         });
 
-        $binaryBody.innerHTML = '';
-        flv.on('flvFetching', function(uint8) {
-            allData = mergeBuffer(allData, uint8);
-            showBinary(allData.slice(0, 16000));
+        flv.on('flvFetching', function (uint8) {
+            flvData = mergeBuffer(flvData, uint8);
+            $state.innerHTML = `Loading[${flvData.length}]`;
+            showBinary();
+            if (flvData.length > 10000) {
+                var selectNum = flvData.length / 10000;
+                var selectArr = [];
+                for (let index = 0; index < selectNum; index++) {
+                    selectArr.push([10000 * index, 10000 * (index + 1)]);
+                }
+    
+                var html = '';
+                selectArr.forEach(item => {
+                    html += `<option value="${item[0]}-${item[1]}">${item[0]} ~ ${item[1]}</option>`
+                });
+                $range.innerHTML = html;
+            }
         });
 
         $jsonTree.innerHTML = '';
-        $state.innerHTML = 'Loading...';
-        flv.on('scripTagMeta', function(meta) {
-            jsonTree.create(meta.amf2.metaData, $jsonTree).expand(function(node) {
+        flv.on('scripTagMeta', function (meta) {
+            jsonTree.create(meta.amf2.metaData, $jsonTree).expand(function (node) {
                 return node.childNodes.length < 10;
             });
         });
 
-        flv.on('flvFetchEnd', function(uint8) {
-            $state.innerHTML = 'complete';
+        flv.on('flvFetchEnd', function () {
+            $state.innerHTML = `complete[${flvData.length}]`;
         });
     }
 
     creatPlayer($urlInput.value);
     $loadBtn.addEventListener('click', () => {
         creatPlayer($urlInput.value);
+    });
+
+    $range.addEventListener('change', () => {
+        showBinary();
     });
 
     $binaryBody.addEventListener('click', event => {
