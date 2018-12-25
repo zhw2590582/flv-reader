@@ -1,6 +1,7 @@
 import { createAbortError } from '../utils';
 
 export default function mozXhrRequest(flv, url) {
+    flv.emit('flvFetchStart');
     const { events: { proxy }, options: { headers } } = flv;
     const xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);

@@ -1,6 +1,7 @@
 import { createAbortError } from '../utils';
 
 export default function xhrRequest(flv, url) {
+    flv.emit('flvFetchStart');
     const { events: { proxy }, options: { headers } } = flv;
     const textEncoder = new TextEncoder();
     const xhr = new XMLHttpRequest();

@@ -20,10 +20,6 @@ export default class Parse {
             debug.log('flv-fetch-start', url);
         });
 
-        flv.on('flvFetchCancel', () => {
-            debug.log('flv-fetch-cancel');
-        });
-
         flv.on('flvFetching', uint8 => {
             this.uint8 = mergeBuffer(this.uint8, uint8);
             this.parse();
@@ -68,12 +64,11 @@ export default class Parse {
             tag.body = this.read(tag.dataSize);
             this.tags.push(tag);
             this.read(4);
-
+            
             switch (tag.tagType) {
                 case 18:
                     tag.meta = scripTag(tag.body);
                     this.flv.emit('scripTagMeta', tag.meta);
-                    debug.log('scrip-tag-meta', tag.meta);
                     break;
                 case 9:
                     tag.meta = videoTag(tag.body);

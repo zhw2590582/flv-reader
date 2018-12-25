@@ -502,6 +502,7 @@
   }
 
   function mozXhrRequest(flv, url) {
+    flv.emit('flvFetchStart');
     var proxy = flv.events.proxy,
         headers = flv.options.headers;
     var xhr = new XMLHttpRequest();
@@ -534,6 +535,7 @@
   }
 
   function xhrRequest(flv, url) {
+    flv.emit('flvFetchStart');
     var proxy = flv.events.proxy,
         headers = flv.options.headers;
     var textEncoder = new TextEncoder();
@@ -1167,9 +1169,6 @@
       flv.on('flvFetchStart', function () {
         debug.log('flv-fetch-start', url);
       });
-      flv.on('flvFetchCancel', function () {
-        debug.log('flv-fetch-cancel');
-      });
       flv.on('flvFetching', function (uint8) {
         _this.uint8 = mergeBuffer(_this.uint8, uint8);
 
@@ -1240,7 +1239,6 @@
             case 18:
               tag.meta = scripTag(tag.body);
               this.flv.emit('scripTagMeta', tag.meta);
-              debug.log('scrip-tag-meta', tag.meta);
               break;
 
             case 9:
@@ -1362,10 +1360,10 @@
       _this.debug = new Debug(assertThisInitialized(assertThisInitialized(_this)));
       _this.events = new Events(assertThisInitialized(assertThisInitialized(_this)));
       _this.workers = new Workers(assertThisInitialized(assertThisInitialized(_this)));
-      _this.stream = new Stream(assertThisInitialized(assertThisInitialized(_this)));
       _this.parse = new Parse(assertThisInitialized(assertThisInitialized(_this)));
       _this.transmuxer = new Transmuxer(assertThisInitialized(assertThisInitialized(_this)));
       _this.mse = new MSE(assertThisInitialized(assertThisInitialized(_this)));
+      _this.stream = new Stream(assertThisInitialized(assertThisInitialized(_this)));
       id += 1;
       _this.id = id;
       Flv.instances.push(assertThisInitialized(assertThisInitialized(_this)));

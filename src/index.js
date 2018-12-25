@@ -21,10 +21,10 @@ class Flv extends Emitter {
         this.debug = new Debug(this);
         this.events = new Events(this);
         this.workers = new Workers(this);
-        this.stream = new Stream(this);
         this.parse = new Parse(this);
         this.transmuxer = new Transmuxer(this);
         this.mse = new MSE(this);
+        this.stream = new Stream(this);
         id += 1;
         this.id = id;
         Flv.instances.push(this);
