@@ -15,6 +15,7 @@ export default class Parse {
         this.index = 0;
         this.header = null;
         this.tags = [];
+        this.done = false;
 
         flv.on('flvFetchStart', () => {
             debug.log('flv-fetch-start', url);
@@ -35,6 +36,7 @@ export default class Parse {
                 this.tags = [];
                 this.parse();
             }
+            this.done = true;
             flv.emit('flvParseDone');
             debug.log('flv-parse-done');
         });
