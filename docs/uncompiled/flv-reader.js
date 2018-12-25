@@ -475,7 +475,9 @@
 
   function fetchRequest(flv, url) {
     flv.emit('flvFetchStart');
-    fetch(url).then(function (response) {
+    fetch(url, {
+      headers: flv.options.headers
+    }).then(function (response) {
       var reader = response.body.getReader();
       flv.on('destroy', function () {
         reader.cancel();
@@ -504,10 +506,14 @@
   }
 
   function mozXhrRequest(flv, url) {
-    var proxy = flv.events.proxy;
+    var proxy = flv.events.proxy,
+        headers = flv.options.headers;
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
     xhr.responseType = 'moz-chunked-arraybuffer';
+    Object.keys(headers).forEach(function (key) {
+      xhr.setRequestHeader(key, headers[key]);
+    });
     proxy(xhr, 'readystatechange', function () {
       flv.emit('readystatechange', xhr);
     });
@@ -532,11 +538,15 @@
   }
 
   function xhrRequest(flv, url) {
-    var proxy = flv.events.proxy;
+    var proxy = flv.events.proxy,
+        headers = flv.options.headers;
     var textEncoder = new TextEncoder();
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
     xhr.responseType = 'text';
+    Object.keys(headers).forEach(function (key) {
+      xhr.setRequestHeader(key, headers[key]);
+    });
     var index = 0;
     proxy(xhr, 'readystatechange', function () {
       flv.emit('readystatechange', xhr);
@@ -1378,7 +1388,8 @@
         return {
           mediaElement: '',
           url: '',
-          debug: false
+          debug: false,
+          headers: {}
         };
       }
     }, {

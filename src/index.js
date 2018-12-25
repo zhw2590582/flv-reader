@@ -35,6 +35,7 @@ class Flv extends Emitter {
             mediaElement: '',
             url: '',
             debug: false,
+            headers: {}
         };
     }
 

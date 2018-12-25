@@ -1,6 +1,8 @@
 export default function fetchRequest(flv, url) {
     flv.emit('flvFetchStart');
-    fetch(url).then(response => {
+    fetch(url, {
+        headers: flv.options.headers
+    }).then(response => {
         const reader = response.body.getReader();
 
         flv.on('destroy', () => {
