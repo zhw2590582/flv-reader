@@ -6,6 +6,7 @@
       "es6": true
   },
   "rules": {
+      "no-bitwise": 0,
       "no-console": 0
   },
   "parserOptions": {

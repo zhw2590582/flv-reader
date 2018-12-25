@@ -287,15 +287,6 @@
       throw new FlvError(msg);
     }
   }
-  function sleep() {
-    var ms = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
-    return new Promise(function (resolve) {
-      return setTimeout(resolve, ms);
-    });
-  }
-  function prefixInteger(num, length) {
-    return (Array(length).join('0') + num).slice(-length);
-  }
   function createAbortError() {
     try {
       return new DOMException('Aborted', 'AbortError');
@@ -305,12 +296,17 @@
       return abortError;
     }
   }
+  function sleep() {
+    var ms = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+    return new Promise(function (resolve) {
+      return setTimeout(resolve, ms);
+    });
+  }
 
   var utils = /*#__PURE__*/Object.freeze({
     errorHandle: errorHandle,
-    sleep: sleep,
-    prefixInteger: prefixInteger,
-    createAbortError: createAbortError
+    createAbortError: createAbortError,
+    sleep: sleep
   });
 
   function checkSupport(options) {
@@ -528,7 +524,7 @@
     });
     flv.on('destroy', function () {
       xhr.abort();
-      createAbortError();
+      throw createAbortError();
     });
     flv.on('streamCancel', function () {
       xhr.abort();
@@ -569,7 +565,7 @@
     });
     flv.on('destroy', function () {
       xhr.abort();
-      createAbortError();
+      throw createAbortError();
     });
     flv.on('streamCancel', function () {
       xhr.abort();
@@ -1130,9 +1126,9 @@
   }
 
   function videoTag(videoTagBody) {
-    var metaData = prefixInteger(videoTagBody[0].toString(2), 8);
-    var frameType = parseInt(metaData.slice(0, 4), 2);
-    var codecID = parseInt(metaData.slice(4), 2);
+    var meta = videoTagBody[0];
+    var frameType = (meta & 0xf0) >> 4;
+    var codecID = meta & 0x0f;
     return {
       frameType: frameType,
       codecID: codecID
@@ -1140,11 +1136,11 @@
   }
 
   function audioTag(audioTagBody) {
-    var metaData = prefixInteger(audioTagBody[0].toString(2), 8);
-    var soundFormat = parseInt(metaData.slice(0, 4), 2);
-    var soundRate = parseInt(metaData.slice(0, 2), 2);
-    var soundSize = parseInt(metaData.slice(0, 1), 2);
-    var soundType = parseInt(metaData.slice(0, 1), 2);
+    var meta = audioTagBody[0];
+    var soundFormat = (meta & 0xf0) >> 4;
+    var soundRate = (meta & 0x0c) >> 2;
+    var soundSize = (meta & 0x02) >> 1;
+    var soundType = (meta & 0x01) >> 0;
     return {
       soundFormat: soundFormat,
       soundRate: soundRate,
@@ -1202,7 +1198,7 @@
       value: function parse() {
         var debug = this.flv.debug;
 
-        if (this.uint8.length >= 13 && !this.header) {
+        if (!this.header) {
           var header = Object.create(null);
           header.signature = readString(this.read(3));
 
@@ -1249,10 +1245,12 @@
 
             case 9:
               tag.meta = videoTag(tag.body);
+              this.flv.emit('videoTagMeta', tag.meta);
               break;
 
             case 8:
               tag.meta = audioTag(tag.body);
+              this.flv.emit('audioTagMeta', tag.meta);
               break;
 
             default:
@@ -1364,9 +1362,9 @@
       _this.debug = new Debug(assertThisInitialized(assertThisInitialized(_this)));
       _this.events = new Events(assertThisInitialized(assertThisInitialized(_this)));
       _this.workers = new Workers(assertThisInitialized(assertThisInitialized(_this)));
+      _this.stream = new Stream(assertThisInitialized(assertThisInitialized(_this)));
       _this.parse = new Parse(assertThisInitialized(assertThisInitialized(_this)));
       _this.transmuxer = new Transmuxer(assertThisInitialized(assertThisInitialized(_this)));
-      _this.stream = new Stream(assertThisInitialized(assertThisInitialized(_this)));
       _this.mse = new MSE(assertThisInitialized(assertThisInitialized(_this)));
       id += 1;
       _this.id = id;

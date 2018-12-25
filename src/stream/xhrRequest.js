@@ -32,7 +32,7 @@ export default function xhrRequest(flv, url) {
 
     flv.on('destroy', () => {
         xhr.abort();
-        createAbortError();
+        throw createAbortError();
     });
 
     flv.on('streamCancel', () => {

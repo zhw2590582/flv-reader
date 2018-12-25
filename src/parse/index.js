@@ -46,7 +46,7 @@ export default class Parse {
 
     parse() {
         const { debug } = this.flv;
-        if (this.uint8.length >= 13 && !this.header) {
+        if (!this.header) {
             const header = Object.create(null);
             header.signature = readString(this.read(3));
             [header.version] = this.read(1);
@@ -77,9 +77,11 @@ export default class Parse {
                     break;
                 case 9:
                     tag.meta = videoTag(tag.body);
+                    this.flv.emit('videoTagMeta', tag.meta);
                     break;
                 case 8:
                     tag.meta = audioTag(tag.body);
+                    this.flv.emit('audioTagMeta', tag.meta);
                     break;
                 default:
                     break;

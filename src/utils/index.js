@@ -6,14 +6,6 @@ export function errorHandle(condition, msg) {
     }
 }
 
-export function sleep(ms = 0) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-export function prefixInteger(num, length) {
-    return (Array(length).join('0') + num).slice(-length);
-}
-
 export function createAbortError() {
     try {
         return new DOMException('Aborted', 'AbortError');
@@ -22,4 +14,8 @@ export function createAbortError() {
         abortError.name = 'AbortError';
         return abortError;
     }
+}
+
+export function sleep(ms = 0) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
