@@ -8,10 +8,10 @@ export default class Transmuxer {
         flv.on('flvParseTag', tag => {
             switch (tag.tagType) {
                 case 9:
-                    this.videoTrack.push(tag);
+                    this.videoTrack.muxer(tag);
                     break;
                 case 8:
-                    this.audioTrack.push(tag);
+                    this.audioTrack.muxer(tag);
                     break;
                 default:
                     break;

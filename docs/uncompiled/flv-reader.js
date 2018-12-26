@@ -302,11 +302,21 @@
       return setTimeout(resolve, ms);
     });
   }
+  function download(url, name) {
+    var elink = document.createElement('a');
+    elink.style.display = 'none';
+    elink.href = url;
+    elink.download = name;
+    document.body.appendChild(elink);
+    elink.click();
+    document.body.removeChild(elink);
+  }
 
   var utils = /*#__PURE__*/Object.freeze({
     errorHandle: errorHandle,
     createAbortError: createAbortError,
-    sleep: sleep
+    sleep: sleep,
+    download: download
   });
 
   function checkSupport(options) {
@@ -802,7 +812,131 @@
     events: ['abort', 'canplay', 'canplaythrough', 'durationchange', 'emptied', 'ended', 'error', 'loadeddata', 'loadedmetadata', 'loadstart', 'pause', 'play', 'playing', 'progress', 'ratechange', 'seeked', 'seeking', 'stalled', 'suspend', 'timeupdate', 'volumechange', 'waiting']
   };
 
-  var aac = {};
+  // https://wiki.multimedia.cx/index.php?title=ADTS
+  // https://github.com/uupaa/AAC.js/wiki/TechnicalTerms
+  var aac = {
+    AIDS: {},
+    ADTS: {
+      frame: {
+        Header: {
+          length: '56bits',
+          SyncWord: {
+            length: '12bits',
+            value: 0xfff
+          },
+          MPEGVersionID: {
+            length: '1bits',
+            0: 'MPEG-4',
+            1: 'MPEG-2'
+          },
+          Layer: {
+            length: '2bits',
+            value: 0
+          },
+          CRCProtection: {
+            length: '1bits',
+            0: 'yes',
+            1: 'no'
+          },
+          Profile: {
+            length: '2bits',
+            1: 'AAC-LC'
+          },
+          SamplingRate: {
+            length: '4bits',
+            '0100': 44100,
+            '0111': 22050
+          },
+          Private: {
+            length: '1bits'
+          },
+          Channels: {
+            length: '3bits',
+            1: 'CENTER',
+            2: 'LEFT/RIGHT'
+          },
+          Originality: {
+            length: '1bits'
+          },
+          Home: {
+            length: '1bits'
+          },
+          Copyrighted: {
+            length: '1bits'
+          },
+          CopyrightID: {
+            length: '1bits'
+          },
+          FrameLength: {
+            length: '13bits',
+            note: 'ADTS Header + CRC + RDBs'
+          },
+          BufferFullness: {
+            length: '11bits'
+          },
+          RDBsInFrame: {
+            length: '2bits',
+            note: 'CRC if protection absent is 0'
+          }
+        },
+        CRC: {
+          length: '16bits'
+        },
+        RDB: {
+          length: 'nbits'
+        }
+      }
+    },
+    AudioSpecificConfig: {
+      audioObjectType: {
+        0: 'Null',
+        1: 'AAC Main',
+        2: 'AAC LC (Low Complexity)',
+        3: 'AAC SSR (Scalable Sample Rate)',
+        4: 'AAC LTP (Long Term Prediction)',
+        5: 'SBR (Spectral Band Replication)',
+        6: 'AAC Scalable',
+        7: 'TwinVQ',
+        8: 'CELP (Code Excited Linear Prediction)',
+        9: 'HXVC (Harmonic Vector eXcitation Coding)',
+        10: 'Reserved',
+        11: 'Reserved',
+        12: 'TTSI (Text-To-Speech Interface)',
+        13: 'Main Synthesis',
+        14: 'Wavetable Synthesis',
+        15: 'General MIDI'
+      },
+      samplingFrequencyIndex: {
+        0: '96000 Hz',
+        1: '88200 Hz',
+        2: '64000 Hz',
+        3: '48000 Hz',
+        4: '44100 Hz',
+        5: '32000 Hz',
+        6: '24000 Hz',
+        7: '22050 Hz',
+        8: '16000 Hz',
+        9: '12000 Hz',
+        10: '11025 Hz',
+        11: '8000 Hz',
+        12: '7350 Hz',
+        13: 'Reserved',
+        14: 'Reserved',
+        15: 'frequency is written explictly'
+      },
+      channelConfiguration: {
+        0: 'Defined in AOT Specifc Config',
+        1: '1 channel: front-center',
+        2: '2 channels: front-left, front-right',
+        3: '3 channels: front-center, front-left, front-right',
+        4: '4 channels: front-center, front-left, front-right, back-center',
+        5: '5 channels: front-center, front-left, front-right, back-left, back-right',
+        6: '6 channels: front-center, front-left, front-right, back-left, back-right, LFE-channel',
+        7: '8 channels: front-center, front-left, front-right, side-left, side-right, back-left, back-right, LFE-channel',
+        '8-15': 'Reserved'
+      }
+    }
+  };
 
   var h264 = {};
 
@@ -1248,6 +1382,7 @@
             case 18:
               tag.meta = scripTag(tag.body);
               this.flv.emit('scripTagMeta', tag.meta);
+              debug.log('scrip-tag-meta', tag.meta);
               break;
 
             case 9:
@@ -1289,11 +1424,105 @@
   function () {
     function AudioTrack(flv) {
       classCallCheck(this, AudioTrack);
+
+      this.flv = flv;
+      this.AACFrames = new Uint8Array(0);
+      this.AudioSpecificConfig = {
+        audioObjectType: 0,
+        samplingFrequencyIndex: 0,
+        channelConfiguration: 0
+      };
     }
 
     createClass(AudioTrack, [{
-      key: "push",
-      value: function push(tag) {}
+      key: "codec",
+      value: function codec() {
+        return "mp4a.40.".concat(this.audioObjectType);
+      }
+    }, {
+      key: "muxer",
+      value: function muxer(tag) {
+        var debug = this.flv.debug;
+        var packet = tag.body.slice(1);
+        var packetType = packet[0];
+        var packetData = packet.slice(1);
+
+        if (tag.meta.soundFormat === 10) {
+          if (packetType === 0) {
+            this.AudioSpecificConfig = AudioTrack.getAudioSpecificConfig(packetData);
+            this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
+            debug.log('audio-specific-config', this.AudioSpecificConfig);
+          } else {
+            var ADTSLen = tag.dataSize - 2 + 7;
+            var ADTSHeader = this.getADTSHeader(ADTSLen);
+            var ADTSBody = tag.body.slice(2);
+            var ADTSFrame = mergeBuffer(ADTSHeader, ADTSBody);
+            this.flv.emit('ADTSFrame', ADTSFrame);
+            this.AACFrames = mergeBuffer(this.AACFrames, ADTSFrame);
+          }
+        }
+      }
+    }, {
+      key: "getADTSHeader",
+      value: function getADTSHeader(ADTSLen) {
+        var _this$AudioSpecificCo = this.AudioSpecificConfig,
+            audioObjectType = _this$AudioSpecificCo.audioObjectType,
+            samplingFrequencyIndex = _this$AudioSpecificCo.samplingFrequencyIndex,
+            channelConfiguration = _this$AudioSpecificCo.channelConfiguration;
+        var ADTSHeader = new Uint8Array(7);
+        ADTSHeader[0] = 0xff;
+        ADTSHeader[1] = 0xf0;
+        ADTSHeader[1] |= 0 << 3;
+        ADTSHeader[1] |= 0 << 1;
+        ADTSHeader[1] |= 1;
+        ADTSHeader[2] = audioObjectType - 1 << 6;
+        ADTSHeader[2] |= (samplingFrequencyIndex & 0x0f) << 2;
+        ADTSHeader[2] |= 0 << 1;
+        ADTSHeader[2] |= (channelConfiguration & 0x04) >> 2;
+        ADTSHeader[3] = (channelConfiguration & 0x03) << 6;
+        ADTSHeader[3] |= 0 << 5;
+        ADTSHeader[3] |= 0 << 4;
+        ADTSHeader[3] |= 0 << 3;
+        ADTSHeader[3] |= 0 << 2;
+        ADTSHeader[3] |= (ADTSLen & 0x1800) >> 11;
+        ADTSHeader[4] = (ADTSLen & 0x7f8) >> 3;
+        ADTSHeader[5] = (ADTSLen & 0x7) << 5;
+        ADTSHeader[5] |= 0x1f;
+        ADTSHeader[6] = 0xfc;
+        return ADTSHeader;
+      }
+    }, {
+      key: "download",
+      value: function download$$1() {
+        var audioBlob = new Blob([this.AACFrames], {
+          type: 'audio/aac'
+        });
+        var url = URL.createObjectURL(audioBlob);
+
+        download(url, 'test.aac');
+      }
+    }], [{
+      key: "getAudioSpecificConfig",
+      value: function getAudioSpecificConfig(packetData) {
+        errorHandle(packetData.length >= 2, 'AudioSpecificConfig parss length is not enough');
+        var AudioSpecificConfig = {};
+        AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
+        var rateIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
+        AudioSpecificConfig.samplingFrequencyIndex = AudioTrack.AAC_SAMPLE_RATES[rateIndex] || null;
+        var channelsIndex = (packetData[1] & 0x7f) >> 3;
+        AudioSpecificConfig.channelConfiguration = AudioTrack.AAC_CHANNELS[channelsIndex] || null;
+        return AudioSpecificConfig;
+      }
+    }, {
+      key: "AAC_SAMPLE_RATES",
+      get: function get() {
+        return [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
+      }
+    }, {
+      key: "AAC_CHANNELS",
+      get: function get() {
+        return [0, 1, 2, 3, 4, 5, 6, 8];
+      }
     }]);
 
     return AudioTrack;
@@ -1307,8 +1536,8 @@
     }
 
     createClass(VideoTrack, [{
-      key: "push",
-      value: function push(tag) {}
+      key: "muxer",
+      value: function muxer(tag) {}
     }]);
 
     return VideoTrack;
@@ -1324,12 +1553,12 @@
     flv.on('flvParseTag', function (tag) {
       switch (tag.tagType) {
         case 9:
-          _this.videoTrack.push(tag);
+          _this.videoTrack.muxer(tag);
 
           break;
 
         case 8:
-          _this.audioTrack.push(tag);
+          _this.audioTrack.muxer(tag);
 
           break;
 

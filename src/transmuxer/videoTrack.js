@@ -3,7 +3,7 @@ export default class VideoTrack {
 
     }
 
-    push(tag) {
+    muxer(tag) {
         
     }
 }

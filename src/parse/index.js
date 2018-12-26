@@ -72,6 +72,7 @@ export default class Parse {
                 case 18:
                     tag.meta = scripTag(tag.body);
                     this.flv.emit('scripTagMeta', tag.meta);
+                    debug.log('scrip-tag-meta', tag.meta);
                     break;
                 case 9:
                     tag.meta = videoTag(tag.body);
