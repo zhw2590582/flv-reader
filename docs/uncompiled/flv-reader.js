@@ -802,11 +802,17 @@
     events: ['abort', 'canplay', 'canplaythrough', 'durationchange', 'emptied', 'ended', 'error', 'loadeddata', 'loadedmetadata', 'loadstart', 'pause', 'play', 'playing', 'progress', 'ratechange', 'seeked', 'seeking', 'stalled', 'suspend', 'timeupdate', 'volumechange', 'waiting']
   };
 
+  var aac = {};
+
+  var h264 = {};
+
   var config = {
     mse: mse,
     flv: flv,
     mp4: mp4,
-    video: video
+    video: video,
+    aac: aac,
+    h264: h264
   };
 
   var MSE =
@@ -1166,6 +1172,7 @@
       this.index = 0;
       this.header = null;
       this.tags = [];
+      this.done = false;
       flv.on('flvFetchStart', function () {
         debug.log('flv-fetch-start', url);
       });
@@ -1187,6 +1194,7 @@
           _this.parse();
         }
 
+        _this.done = true;
         flv.emit('flvParseDone');
         debug.log('flv-parse-done');
       });
@@ -1222,6 +1230,7 @@
 
         while (this.index < this.uint8.length) {
           var tag = Object.create(null);
+          var startIndex = this.index;
 
           var _this$read5 = this.read(1);
 
@@ -1255,7 +1264,7 @@
               break;
           }
 
-          this.flv.emit('flvParseTag', tag);
+          this.flv.emit('flvParseTag', tag, startIndex, this.index);
         }
       }
     }, {
@@ -1275,71 +1284,60 @@
     return Parse;
   }();
 
-  var Transmuxer =
+  var AudioTrack =
   /*#__PURE__*/
   function () {
-    function Transmuxer(flv) {
-      var _this = this;
-
-      classCallCheck(this, Transmuxer);
-
-      this.audio = {
-        soundFormats: [],
-        soundRates: [],
-        soundSizes: [],
-        soundTypes: [],
-        data: new Uint8Array(0)
-      };
-      this.video = {
-        frameTypes: [],
-        codecIDs: [],
-        data: new Uint8Array(0)
-      };
-      flv.on('flvParseTag', function (tag) {
-        switch (tag.tagType) {
-          case 9:
-            Transmuxer.mergeAttr(_this.video.frameTypes, tag.meta.frameType);
-            Transmuxer.mergeAttr(_this.video.codecIDs, tag.meta.codecID);
-            _this.video.data = mergeBuffer(_this.video.data, tag.body.slice(1));
-            break;
-
-          case 8:
-            Transmuxer.mergeAttr(_this.audio.soundFormats, tag.meta.soundFormat);
-            Transmuxer.mergeAttr(_this.audio.soundRates, tag.meta.soundRate);
-            Transmuxer.mergeAttr(_this.audio.soundSizes, tag.meta.soundSize);
-            Transmuxer.mergeAttr(_this.audio.soundTypes, tag.meta.soundType);
-            _this.audio.data = mergeBuffer(_this.audio.data, tag.body.slice(1));
-            break;
-
-          default:
-            break;
-        }
-      });
+    function AudioTrack(flv) {
+      classCallCheck(this, AudioTrack);
     }
 
-    createClass(Transmuxer, [{
-      key: "download",
-      value: function download() {
-        var elink = document.createElement('a');
-        elink.href = URL.createObjectURL(new Blob(this.audio.data, {
-          type: 'audio/aac'
-        }));
-        elink.download = 'name.aac';
-        document.body.appendChild(elink);
-        elink.click();
-        document.body.removeChild(elink);
-      }
-    }], [{
-      key: "mergeAttr",
-      value: function mergeAttr(arr, item) {
-        if (arr.indexOf(item) === -1) {
-          arr.push(item);
-        }
-      }
+    createClass(AudioTrack, [{
+      key: "push",
+      value: function push(tag) {}
     }]);
 
-    return Transmuxer;
+    return AudioTrack;
   }();
+
+  var VideoTrack =
+  /*#__PURE__*/
+  function () {
+    function VideoTrack(flv) {
+      classCallCheck(this, VideoTrack);
+    }
+
+    createClass(VideoTrack, [{
+      key: "push",
+      value: function push(tag) {}
+    }]);
+
+    return VideoTrack;
+  }();
+
+  var Transmuxer = function Transmuxer(flv) {
+    var _this = this;
+
+    classCallCheck(this, Transmuxer);
+
+    this.audioTrack = new AudioTrack(flv);
+    this.videoTrack = new VideoTrack(flv);
+    flv.on('flvParseTag', function (tag) {
+      switch (tag.tagType) {
+        case 9:
+          _this.videoTrack.push(tag);
+
+          break;
+
+        case 8:
+          _this.audioTrack.push(tag);
+
+          break;
+
+        default:
+          break;
+      }
+    });
+  };
 
   var id = 0;
 
