@@ -88,6 +88,6 @@ export default class AudioTrack {
             type: 'audio/aac',
         });
         const url = URL.createObjectURL(audioBlob);
-        download(url, 'test.aac');
+        download(url, 'test2.aac');
     }
 }

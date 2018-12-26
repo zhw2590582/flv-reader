@@ -11,11 +11,15 @@ export function readBuffer(buffer) {
     };
 }
 
-export function mergeBuffer(a, b) {
-    const c = new a.constructor(a.length + b.length);
-    c.set(a);
-    c.set(b, a.length);
-    return c;
+export function mergeBuffer(...buffers) {
+    const bufferLength = buffers.reduce((pre, val) => pre + val.length, 0);
+    const buffer = new buffers[0].constructor(bufferLength);
+    let offset = 0;
+    buffers.forEach(buf => {
+        buffer.set(buf, offset);
+        offset += buf.length;
+    });
+    return buffer;
 }
 
 export function readDouble(array) {

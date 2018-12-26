@@ -1088,11 +1088,21 @@
       return tempUint8;
     };
   }
-  function mergeBuffer(a, b) {
-    var c = new a.constructor(a.length + b.length);
-    c.set(a);
-    c.set(b, a.length);
-    return c;
+  function mergeBuffer() {
+    for (var _len = arguments.length, buffers = new Array(_len), _key = 0; _key < _len; _key++) {
+      buffers[_key] = arguments[_key];
+    }
+
+    var bufferLength = buffers.reduce(function (pre, val) {
+      return pre + val.length;
+    }, 0);
+    var buffer = new buffers[0].constructor(bufferLength);
+    var offset = 0;
+    buffers.forEach(function (buf) {
+      buffer.set(buf, offset);
+      offset += buf.length;
+    });
+    return buffer;
   }
   function readDouble(array) {
     var view = new DataView(new ArrayBuffer(array.length));
@@ -1499,7 +1509,7 @@
         });
         var url = URL.createObjectURL(audioBlob);
 
-        download(url, 'test.aac');
+        download(url, 'test2.aac');
       }
     }], [{
       key: "getAudioSpecificConfig",
