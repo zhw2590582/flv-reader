@@ -543,12 +543,10 @@
     flv.on('destroy', function () {
       xhr.abort();
       flv.debug.log('stream-cancel');
-      throw createAbortError();
     });
     flv.on('streamCancel', function () {
       xhr.abort();
       flv.debug.log('stream-cancel');
-      throw createAbortError();
     });
     xhr.send();
   }
@@ -587,12 +585,10 @@
     flv.on('destroy', function () {
       xhr.abort();
       flv.debug.log('stream-cancel');
-      throw createAbortError();
     });
     flv.on('streamCancel', function () {
       xhr.abort();
       flv.debug.log('stream-cancel');
-      createAbortError();
     });
     xhr.send();
   }

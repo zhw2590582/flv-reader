@@ -1,5 +1,3 @@
-import { createAbortError } from '../utils';
-
 export default function xhrRequest(flv, url) {
     flv.emit('streamStart');
     const { events: { proxy }, options: { headers } } = flv;
@@ -34,13 +32,11 @@ export default function xhrRequest(flv, url) {
     flv.on('destroy', () => {
         xhr.abort();
         flv.debug.log('stream-cancel');
-        throw createAbortError();
     });
 
     flv.on('streamCancel', () => {
         xhr.abort();
         flv.debug.log('stream-cancel');
-        createAbortError();
     });
 
     xhr.send();
