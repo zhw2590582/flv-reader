@@ -1451,15 +1451,14 @@
     return Parse;
   }();
 
-  var AudioTrack =
+  var AAC =
   /*#__PURE__*/
   function () {
-    function AudioTrack(flv) {
-      classCallCheck(this, AudioTrack);
+    function AAC(flv, audioTrack) {
+      classCallCheck(this, AAC);
 
       this.flv = flv;
-      this.audioBuffers = new Uint8Array(0);
-      this.audioInfo = null;
+      this.audioTrack = audioTrack;
       this.AudioSpecificConfig = {
         audioObjectType: 0,
         samplingFrequencyIndex: 0,
@@ -1467,51 +1466,35 @@
       };
     }
 
-    createClass(AudioTrack, [{
+    createClass(AAC, [{
       key: "muxer",
       value: function muxer(tag) {
         var debug = this.flv.debug;
-        var soundFormat = tag.meta.soundFormat;
         var packet = tag.body.slice(1);
+        var packetType = packet[0];
+        var frame = new Uint8Array(0);
+        var info = {};
 
-        if (soundFormat === 10) {
-          var packetType = packet[0];
-
-          if (packetType === 0) {
-            var packetData = packet.slice(1);
-            this.AudioSpecificConfig = AudioTrack.getAudioSpecificConfig(packetData);
-            this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
-            debug.log('audio-specific-config', this.AudioSpecificConfig);
-          } else {
-            var ADTSLen = tag.dataSize - 2 + 7;
-            var ADTSHeader = this.getADTSHeader(ADTSLen);
-            var ADTSBody = tag.body.slice(2);
-            var ADTSFrame = mergeBuffer(ADTSHeader, ADTSBody);
-            this.flv.emit('addAudioBuffer', ADTSFrame);
-            this.audioBuffers = mergeBuffer(this.audioBuffers, ADTSFrame);
-          }
-
-          if (!this.audioInfo) {
-            this.audioInfo = {
-              format: 'aac',
-              codec: "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType)
-            };
-            debug.log('audio-info', this.audioInfo);
-          }
-        } else if (soundFormat === 2) {
-          this.flv.emit('addAudioBuffer', packet);
-          this.audioBuffers = mergeBuffer(this.audioBuffers, packet);
-
-          if (!this.audioInfo) {
-            this.audioInfo = {
-              format: 'mp3',
-              codec: 'mp3'
-            };
-            debug.log('audio-info', this.audioInfo);
-          }
+        if (packetType === 0) {
+          var packetData = packet.slice(1);
+          this.AudioSpecificConfig = AAC.getAudioSpecificConfig(packetData);
+          this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
+          debug.log('audio-specific-config', this.AudioSpecificConfig);
         } else {
-          debug.warn('unsupported-audio-format', soundFormat);
+          var ADTSLen = tag.dataSize - 2 + 7;
+          var ADTSHeader = this.getADTSHeader(ADTSLen);
+          var ADTSBody = tag.body.slice(2);
+          frame = mergeBuffer(ADTSHeader, ADTSBody);
         }
+
+        info = {
+          format: 'aac',
+          codec: "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType)
+        };
+        return {
+          frame: frame,
+          info: info
+        };
       }
     }, {
       key: "getADTSHeader",
@@ -1542,15 +1525,6 @@
         ADTSHeader[6] = 0xfc;
         return ADTSHeader;
       }
-    }, {
-      key: "download",
-      value: function download$$1() {
-        var url = URL.createObjectURL(new Blob([this.audioBuffers], {
-          type: "audio/".concat(this.soundFormat)
-        }));
-
-        download(url, "audioTrack.".concat(this.soundFormat));
-      }
     }], [{
       key: "getAudioSpecificConfig",
       value: function getAudioSpecificConfig(packetData) {
@@ -1558,9 +1532,9 @@
         var AudioSpecificConfig = {};
         AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
         var rateIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
-        AudioSpecificConfig.samplingFrequencyIndex = AudioTrack.AAC_SAMPLE_RATES[rateIndex] || null;
+        AudioSpecificConfig.samplingFrequencyIndex = AAC.AAC_SAMPLE_RATES[rateIndex] || null;
         var channelsIndex = (packetData[1] & 0x7f) >> 3;
-        AudioSpecificConfig.channelConfiguration = AudioTrack.AAC_CHANNELS[channelsIndex] || null;
+        AudioSpecificConfig.channelConfiguration = AAC.AAC_CHANNELS[channelsIndex] || null;
         return AudioSpecificConfig;
       }
     }, {
@@ -1572,6 +1546,94 @@
       key: "AAC_CHANNELS",
       get: function get() {
         return [0, 1, 2, 3, 4, 5, 6, 8];
+      }
+    }]);
+
+    return AAC;
+  }();
+
+  var MP3 =
+  /*#__PURE__*/
+  function () {
+    function MP3(flv, audioTrack) {
+      classCallCheck(this, MP3);
+
+      this.flv = flv;
+      this.audioTrack = audioTrack;
+    }
+
+    createClass(MP3, [{
+      key: "muxer",
+      value: function muxer(tag) {
+        var frame = tag.body.slice(1);
+        var info = {
+          format: 'mp3',
+          codec: 'mp3'
+        };
+        return {
+          frame: frame,
+          info: info
+        };
+      }
+    }]);
+
+    return MP3;
+  }();
+
+  var AudioTrack =
+  /*#__PURE__*/
+  function () {
+    function AudioTrack(flv) {
+      classCallCheck(this, AudioTrack);
+
+      this.flv = flv;
+      this.audioBuffers = new Uint8Array(0);
+      this.audioInfo = null;
+      this.aac = new AAC(flv, this);
+      this.mp3 = new MP3(flv, this);
+    }
+
+    createClass(AudioTrack, [{
+      key: "muxer",
+      value: function muxer(tag) {
+        var debug = this.flv.debug;
+        var soundFormat = tag.meta.soundFormat;
+
+        if (soundFormat !== 10 && soundFormat !== 2) {
+          debug.warn('unsupported-audio-format', soundFormat);
+        } else {
+          var formatName = AudioTrack.SOUND_FORMATS[soundFormat];
+
+          var _this$formatName$muxe = this[formatName].muxer(tag),
+              frame = _this$formatName$muxe.frame,
+              info = _this$formatName$muxe.info;
+
+          this.flv.emit('addAudioFrame', frame);
+          this.audioBuffers = mergeBuffer(this.audioBuffers, frame);
+
+          if (!this.audioInfo) {
+            this.audioInfo = info;
+            debug.log('audio-info', this.audioInfo);
+          }
+        }
+      }
+    }, {
+      key: "download",
+      value: function download$$1() {
+        errorHandle(this.audioInfo && this.audioBuffers.length > 0, 'Audio data seems to be not ready');
+        var url = URL.createObjectURL(new Blob([this.audioBuffers], {
+          type: "audio/".concat(this.audioInfo.format)
+        }));
+
+        download(url, "audioTrack.".concat(this.audioInfo.format));
+      }
+    }], [{
+      key: "SOUND_FORMATS",
+      get: function get() {
+        return {
+          10: 'aac',
+          2: 'mp3'
+        };
       }
     }]);
 
