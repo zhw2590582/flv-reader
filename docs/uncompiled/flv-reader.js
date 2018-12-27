@@ -1613,6 +1613,7 @@
 
           if (!this.audioInfo) {
             this.audioInfo = info;
+            this.flv.emit('audioInfo', this.audioInfo);
             debug.log('audio-info', this.audioInfo);
           }
         }
@@ -1640,16 +1641,38 @@
     return AudioTrack;
   }();
 
+  var H264 =
+  /*#__PURE__*/
+  function () {
+    function H264(flv, videoTrack) {
+      classCallCheck(this, H264);
+
+      this.flv = flv;
+      this.videoTrack = videoTrack;
+    }
+
+    createClass(H264, [{
+      key: "muxer",
+      value: function muxer(tag) {//
+      }
+    }]);
+
+    return H264;
+  }();
+
   var VideoTrack =
   /*#__PURE__*/
   function () {
     function VideoTrack(flv) {
       classCallCheck(this, VideoTrack);
+
+      this.h264 = new H264(flv, this);
     }
 
     createClass(VideoTrack, [{
       key: "muxer",
-      value: function muxer(tag) {}
+      value: function muxer(tag) {//
+      }
     }]);
 
     return VideoTrack;

@@ -31,6 +31,7 @@ export default class AudioTrack {
             this.audioBuffers = mergeBuffer(this.audioBuffers, frame);
             if (!this.audioInfo) {
                 this.audioInfo = info;
+                this.flv.emit('audioInfo', this.audioInfo);
                 debug.log('audio-info', this.audioInfo);
             }
         }
