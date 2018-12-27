@@ -104,7 +104,7 @@ export default class Parse {
     }
 
     readable(length) {
-        return this.uint8.slice(this.index).length >= length;
+        return this.uint8.length - this.index >= length;
     }
 
     read(length) {

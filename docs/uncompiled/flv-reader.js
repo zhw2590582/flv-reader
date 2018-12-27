@@ -1432,7 +1432,7 @@
     }, {
       key: "readable",
       value: function readable(length) {
-        return this.uint8.slice(this.index).length >= length;
+        return this.uint8.length - this.index >= length;
       }
     }, {
       key: "read",
