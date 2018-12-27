@@ -4,7 +4,8 @@ import { mergeBuffer } from '../utils/buffer';
 export default class AudioTrack {
     constructor(flv) {
         this.flv = flv;
-        this.AACFrames = new Uint8Array(0);
+        this.soundFormat = '';
+        this.audioBuffers = new Uint8Array(0);
         this.AudioSpecificConfig = {
             audioObjectType: 0,
             samplingFrequencyIndex: 0,
@@ -20,16 +21,18 @@ export default class AudioTrack {
         return [0, 1, 2, 3, 4, 5, 6, 8];
     }
 
-    codec() {
-        return `mp4a.40.${this.audioObjectType}`;
+    get codec() {
+        return `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`;
     }
 
     muxer(tag) {
         const { debug } = this.flv;
+        const { soundFormat } = tag.meta;
         const packet = tag.body.slice(1);
-        const packetType = packet[0];
-        const packetData = packet.slice(1);
-        if (tag.meta.soundFormat === 10) {
+        if (soundFormat === 10) {
+            this.soundFormat = 'aac';
+            const packetType = packet[0];
+            const packetData = packet.slice(1);
             if (packetType === 0) {
                 this.AudioSpecificConfig = AudioTrack.getAudioSpecificConfig(packetData);
                 this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
@@ -39,11 +42,15 @@ export default class AudioTrack {
                 const ADTSHeader = this.getADTSHeader(ADTSLen);
                 const ADTSBody = tag.body.slice(2);
                 const ADTSFrame = mergeBuffer(ADTSHeader, ADTSBody);
-                this.flv.emit('ADTSFrame', ADTSFrame);
-                this.AACFrames = mergeBuffer(this.AACFrames, ADTSFrame);
+                this.flv.emit('addAudioBuffer', ADTSFrame);
+                this.audioBuffers = mergeBuffer(this.audioBuffers, ADTSFrame);
             }
+        } else if (soundFormat === 2) {
+            this.soundFormat = 'mp3';
+            this.flv.emit('addAudioBuffer', packet);
+            this.audioBuffers = mergeBuffer(this.audioBuffers, packet);
         } else {
-            //
+            debug.warn('unsupported-audio-format', soundFormat);
         }
     }
 
@@ -84,10 +91,11 @@ export default class AudioTrack {
     }
 
     download() {
-        const audioBlob = new Blob([this.AACFrames], {
-            type: 'audio/aac',
-        });
-        const url = URL.createObjectURL(audioBlob);
-        download(url, 'test2.aac');
+        const url = URL.createObjectURL(
+            new Blob([this.audioBuffers], {
+                type: `audio/${this.soundFormat}`,
+            }),
+        );
+        download(url, `audioTrack.${this.soundFormat}`);
     }
 }

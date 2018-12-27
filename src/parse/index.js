@@ -87,6 +87,7 @@ export default class Parse {
                     this.flv.emit('audioTagMeta', tag.meta);
                     break;
                 default:
+                    debug.warn('unknown-tag-type', tag.tagType);
                     break;
             }
 

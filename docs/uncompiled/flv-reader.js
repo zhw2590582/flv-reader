@@ -1410,6 +1410,7 @@
               break;
 
             default:
+              debug.warn('unknown-tag-type', tag.tagType);
               break;
           }
 
@@ -1442,7 +1443,8 @@
       classCallCheck(this, AudioTrack);
 
       this.flv = flv;
-      this.AACFrames = new Uint8Array(0);
+      this.soundFormat = '';
+      this.audioBuffers = new Uint8Array(0);
       this.AudioSpecificConfig = {
         audioObjectType: 0,
         samplingFrequencyIndex: 0,
@@ -1451,19 +1453,17 @@
     }
 
     createClass(AudioTrack, [{
-      key: "codec",
-      value: function codec() {
-        return "mp4a.40.".concat(this.audioObjectType);
-      }
-    }, {
       key: "muxer",
       value: function muxer(tag) {
         var debug = this.flv.debug;
+        var soundFormat = tag.meta.soundFormat;
         var packet = tag.body.slice(1);
-        var packetType = packet[0];
-        var packetData = packet.slice(1);
 
-        if (tag.meta.soundFormat === 10) {
+        if (soundFormat === 10) {
+          this.soundFormat = 'aac';
+          var packetType = packet[0];
+          var packetData = packet.slice(1);
+
           if (packetType === 0) {
             this.AudioSpecificConfig = AudioTrack.getAudioSpecificConfig(packetData);
             this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
@@ -1473,9 +1473,15 @@
             var ADTSHeader = this.getADTSHeader(ADTSLen);
             var ADTSBody = tag.body.slice(2);
             var ADTSFrame = mergeBuffer(ADTSHeader, ADTSBody);
-            this.flv.emit('ADTSFrame', ADTSFrame);
-            this.AACFrames = mergeBuffer(this.AACFrames, ADTSFrame);
+            this.flv.emit('addAudioBuffer', ADTSFrame);
+            this.audioBuffers = mergeBuffer(this.audioBuffers, ADTSFrame);
           }
+        } else if (soundFormat === 2) {
+          this.soundFormat = 'mp3';
+          this.flv.emit('addAudioBuffer', packet);
+          this.audioBuffers = mergeBuffer(this.audioBuffers, packet);
+        } else {
+          debug.warn('unsupported-audio-format', soundFormat);
         }
       }
     }, {
@@ -1510,12 +1516,16 @@
     }, {
       key: "download",
       value: function download$$1() {
-        var audioBlob = new Blob([this.AACFrames], {
-          type: 'audio/aac'
-        });
-        var url = URL.createObjectURL(audioBlob);
+        var url = URL.createObjectURL(new Blob([this.audioBuffers], {
+          type: "audio/".concat(this.soundFormat)
+        }));
 
-        download(url, 'test2.aac');
+        download(url, "audioTrack.".concat(this.soundFormat));
+      }
+    }, {
+      key: "codec",
+      get: function get() {
+        return "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType);
       }
     }], [{
       key: "getAudioSpecificConfig",
