@@ -44,7 +44,7 @@ export default class Parse {
 
     parse() {
         const { debug } = this.flv;
-        if (this.uint8.length >= 13 && !this.header) {
+        if (!this.header && this.readable(13)) {
             const header = Object.create(null);
             header.signature = readString(this.read(3));
             [header.version] = this.read(1);
@@ -60,18 +60,24 @@ export default class Parse {
         while (this.index < this.uint8.length) {
             const restIndex = this.index;
             const tag = Object.create(null);
-            [tag.tagType] = this.read(1);
-            tag.dataSize = readBufferSum(this.read(3));
-            tag.timestamp = this.read(4);
-            tag.streamID = this.read(3);
 
-            if (tag.dataSize <= this.uint8.slice(this.index).length) {
+            if (this.readable(11)) {
+                [tag.tagType] = this.read(1);
+                tag.dataSize = readBufferSum(this.read(3));
+                tag.timestamp = this.read(4);
+                tag.streamID = this.read(3);
+            } else {
+                this.index = restIndex;
+                break;
+            }
+
+            if (this.readable(tag.dataSize)) {
                 tag.body = this.read(tag.dataSize);
             } else {
                 this.index = restIndex;
                 break;
             }
-            
+
             switch (tag.tagType) {
                 case 18:
                     tag.meta = scripTag(tag.body);
@@ -91,10 +97,14 @@ export default class Parse {
                     break;
             }
 
-            this.tags.push(tag);
             this.read(4);
+            this.tags.push(tag);
             this.flv.emit('flvParseTag', tag);
         }
+    }
+
+    readable(length) {
+        return this.uint8.slice(this.index).length >= length;
     }
 
     read(length) {

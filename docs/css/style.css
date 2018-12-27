@@ -5,60 +5,52 @@ html, body {
 .container {
     height: 100%;
     display: flex;
+    width: 800px;
+    margin: 0 auto;
     font-size: 14px;
-    color: #97a8be;
-}
-
-.part-left {
-    display: flex;
-    width: 50%;
     flex-direction: column;
+    color: #97a8be;
+    border-left: 1px solid #ddd;
     border-right: 1px solid #ddd;
 }
 
-.part-left .controller {
+.controller {
     display: flex;
     padding: 15px 10px;
     border-bottom: 1px solid #ddd;
     box-sizing: border-box;
 }
 
-.part-left .controller .controller-left {
+.controller .controller-left {
     flex: 1;
 }
 
-.part-left .controller .controller-left .urlInput {
+.controller .controller-left .urlInput {
     width: 100%;
     margin-bottom: 15px;
     box-sizing: border-box;
 }
 
-.part-left .controller .controller-right {
+.controller .controller-right {
     width: 75px;
     text-align: center;
 }
 
-.part-left .video-wrap {
+.video-wrap {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 50px 30px;
+    padding: 50px 20px;
     border-bottom: 1px solid #ddd;
     box-sizing: border-box;
 }
 
-.part-left .video-wrap video {
+.video-wrap video {
     opacity: 0.1;
     width: 100%;
 }
 
-.part-left .console {
+.console {
     position: relative;
     flex: 1;
-}
-
-.part-right {
-    flex: 1;
-    height: 100%;
-    overflow-y: auto;
 }

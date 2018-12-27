@@ -1349,7 +1349,7 @@
       value: function parse() {
         var debug = this.flv.debug;
 
-        if (this.uint8.length >= 13 && !this.header) {
+        if (!this.header && this.readable(13)) {
           var header = Object.create(null);
           header.signature = readString(this.read(3));
 
@@ -1376,16 +1376,21 @@
           var restIndex = this.index;
           var tag = Object.create(null);
 
-          var _this$read5 = this.read(1);
+          if (this.readable(11)) {
+            var _this$read5 = this.read(1);
 
-          var _this$read6 = slicedToArray(_this$read5, 1);
+            var _this$read6 = slicedToArray(_this$read5, 1);
 
-          tag.tagType = _this$read6[0];
-          tag.dataSize = readBufferSum(this.read(3));
-          tag.timestamp = this.read(4);
-          tag.streamID = this.read(3);
+            tag.tagType = _this$read6[0];
+            tag.dataSize = readBufferSum(this.read(3));
+            tag.timestamp = this.read(4);
+            tag.streamID = this.read(3);
+          } else {
+            this.index = restIndex;
+            break;
+          }
 
-          if (tag.dataSize <= this.uint8.slice(this.index).length) {
+          if (this.readable(tag.dataSize)) {
             tag.body = this.read(tag.dataSize);
           } else {
             this.index = restIndex;
@@ -1414,10 +1419,15 @@
               break;
           }
 
-          this.tags.push(tag);
           this.read(4);
+          this.tags.push(tag);
           this.flv.emit('flvParseTag', tag);
         }
+      }
+    }, {
+      key: "readable",
+      value: function readable(length) {
+        return this.uint8.slice(this.index).length >= length;
       }
     }, {
       key: "read",
@@ -1443,8 +1453,8 @@
       classCallCheck(this, AudioTrack);
 
       this.flv = flv;
-      this.soundFormat = '';
       this.audioBuffers = new Uint8Array(0);
+      this.audioInfo = null;
       this.AudioSpecificConfig = {
         audioObjectType: 0,
         samplingFrequencyIndex: 0,
@@ -1460,11 +1470,10 @@
         var packet = tag.body.slice(1);
 
         if (soundFormat === 10) {
-          this.soundFormat = 'aac';
           var packetType = packet[0];
-          var packetData = packet.slice(1);
 
           if (packetType === 0) {
+            var packetData = packet.slice(1);
             this.AudioSpecificConfig = AudioTrack.getAudioSpecificConfig(packetData);
             this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
             debug.log('audio-specific-config', this.AudioSpecificConfig);
@@ -1476,10 +1485,25 @@
             this.flv.emit('addAudioBuffer', ADTSFrame);
             this.audioBuffers = mergeBuffer(this.audioBuffers, ADTSFrame);
           }
+
+          if (!this.audioInfo) {
+            this.audioInfo = {
+              format: 'aac',
+              codec: "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType)
+            };
+            debug.log('audio-info', this.audioInfo);
+          }
         } else if (soundFormat === 2) {
-          this.soundFormat = 'mp3';
           this.flv.emit('addAudioBuffer', packet);
           this.audioBuffers = mergeBuffer(this.audioBuffers, packet);
+
+          if (!this.audioInfo) {
+            this.audioInfo = {
+              format: 'mp3',
+              codec: 'mp3'
+            };
+            debug.log('audio-info', this.audioInfo);
+          }
         } else {
           debug.warn('unsupported-audio-format', soundFormat);
         }
@@ -1521,11 +1545,6 @@
         }));
 
         download(url, "audioTrack.".concat(this.soundFormat));
-      }
-    }, {
-      key: "codec",
-      get: function get() {
-        return "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType);
       }
     }], [{
       key: "getAudioSpecificConfig",

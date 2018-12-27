@@ -4,8 +4,8 @@ import { mergeBuffer } from '../utils/buffer';
 export default class AudioTrack {
     constructor(flv) {
         this.flv = flv;
-        this.soundFormat = '';
         this.audioBuffers = new Uint8Array(0);
+        this.audioInfo = null;
         this.AudioSpecificConfig = {
             audioObjectType: 0,
             samplingFrequencyIndex: 0,
@@ -21,19 +21,14 @@ export default class AudioTrack {
         return [0, 1, 2, 3, 4, 5, 6, 8];
     }
 
-    get codec() {
-        return `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`;
-    }
-
     muxer(tag) {
         const { debug } = this.flv;
         const { soundFormat } = tag.meta;
         const packet = tag.body.slice(1);
         if (soundFormat === 10) {
-            this.soundFormat = 'aac';
             const packetType = packet[0];
-            const packetData = packet.slice(1);
             if (packetType === 0) {
+                const packetData = packet.slice(1);
                 this.AudioSpecificConfig = AudioTrack.getAudioSpecificConfig(packetData);
                 this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
                 debug.log('audio-specific-config', this.AudioSpecificConfig);
@@ -45,10 +40,25 @@ export default class AudioTrack {
                 this.flv.emit('addAudioBuffer', ADTSFrame);
                 this.audioBuffers = mergeBuffer(this.audioBuffers, ADTSFrame);
             }
+
+            if (!this.audioInfo) {
+                this.audioInfo = {
+                    format: 'aac',
+                    codec: `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`,
+                };
+                debug.log('audio-info', this.audioInfo);
+            }
         } else if (soundFormat === 2) {
-            this.soundFormat = 'mp3';
             this.flv.emit('addAudioBuffer', packet);
             this.audioBuffers = mergeBuffer(this.audioBuffers, packet);
+
+            if (!this.audioInfo) {
+                this.audioInfo = {
+                    format: 'mp3',
+                    codec: 'mp3',
+                };
+                debug.log('audio-info', this.audioInfo);
+            }
         } else {
             debug.warn('unsupported-audio-format', soundFormat);
         }

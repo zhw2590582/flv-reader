@@ -7,32 +7,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" media="screen" href="./css/normalize.css" />
     <link rel="stylesheet" type="text/css" media="screen" href="./css/style.css" />
-    <link rel="stylesheet" type="text/css" media="screen" href="./css/jsonTree.css" />
     <link rel="stylesheet" type="text/css" media="screen" href="./css/consola.css" />
 </head>
 <body>
     <div class="container">
-        <div class="part-left">
-            <div class="controller">
-                <div class="controller-left">
-                    <input class="urlInput" type="text" placeholder="flv url" value="./video/you-name-mp3.flv">
-                    <input class="fileInput" type="file">
-                </div>
-                <div class="controller-right">
-                    <input class="playBtn" type="button" value="Play">
-                </div>
+        <div class="controller">
+            <div class="controller-left">
+                <input class="urlInput" type="text" placeholder="flv url" value="https://blog.zhw-island.com/assets-cdn/video/you-name-aac.flv">
+                <input class="fileInput" type="file">
             </div>
-            <div class="video-wrap">
-                <video id="video" controls></video>
+            <div class="controller-right">
+                <input class="playBtn" type="button" value="Play">
             </div>
-            <div class="console"></div>
         </div>
-        <div class="part-right">
-            <div class="jsonTree"></div>
+        <div class="video-wrap">
+            <video id="video" controls></video>
         </div>
+        <div class="console"></div>
     </div>
     <script src="./uncompiled/flv-reader.js"></script>
-    <script src="./js/jsonTree.js"></script>
     <script src="./js/consola.js"></script>
     <script src="./js/common.js"></script>
 </body>
