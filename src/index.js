@@ -18,6 +18,9 @@ class FlvReader extends Emitter {
         this.options = Object.assign({}, FlvReader.DEFAULTS, options);
         validateOptions(this);
         checkSupport(this);
+
+        this.loaded = false;
+
         this.debug = new Debug(this);
         this.events = new Events(this);
         this.workers = new Workers(this);
@@ -25,6 +28,7 @@ class FlvReader extends Emitter {
         this.transmuxer = new Transmuxer(this);
         this.mse = new MSE(this);
         this.stream = new Stream(this);
+
         id += 1;
         this.id = id;
         FlvReader.instances.push(this);
@@ -35,6 +39,7 @@ class FlvReader extends Emitter {
             mediaElement: '',
             url: '',
             debug: false,
+            live: false,
             headers: {}
         };
     }

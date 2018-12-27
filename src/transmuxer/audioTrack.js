@@ -38,7 +38,11 @@ export default class AudioTrack {
     }
 
     download() {
+        const { loaded, debug } = this.flv;
         errorHandle(this.audioInfo && this.audioBuffers.length > 0, 'Audio data seems to be not ready');
+        if (!loaded) {
+            debug.warn('Audio data does not seem to be loaded completely');
+        }
         const url = URL.createObjectURL(
             new Blob([this.audioBuffers], {
                 type: `audio/${this.audioInfo.format}`,

@@ -354,7 +354,7 @@
       if (debug) {
         var _console;
 
-        (_console = console).log.apply(_console, ["[".concat(name, "]")].concat(args));
+        (_console = console).log.apply(_console, ["Flv: [".concat(name, "]")].concat(args));
       }
     };
 
@@ -368,7 +368,7 @@
       if (debug) {
         var _console2;
 
-        (_console2 = console).warn.apply(_console2, ["[".concat(name, "]")].concat(args));
+        (_console2 = console).warn.apply(_console2, ["Flv: [".concat(name, "]")].concat(args));
       }
     };
   };
@@ -1327,7 +1327,6 @@
       this.index = 0;
       this.header = null;
       this.tags = [];
-      this.done = false;
       flv.on('streamStart', function () {
         debug.log('stream-start', url);
       });
@@ -1349,7 +1348,7 @@
           _this.parse();
         }
 
-        _this.done = true;
+        _this.flv.loaded = true;
         flv.emit('parseDone');
         debug.log('parse-done');
       });
@@ -1627,7 +1626,15 @@
     }, {
       key: "download",
       value: function download$$1() {
+        var _this$flv = this.flv,
+            loaded = _this$flv.loaded,
+            debug = _this$flv.debug;
         errorHandle(this.audioInfo && this.audioBuffers.length > 0, 'Audio data seems to be not ready');
+
+        if (!loaded) {
+          debug.warn('Audio data does not seem to be loaded completely');
+        }
+
         var url = URL.createObjectURL(new Blob([this.audioBuffers], {
           type: "audio/".concat(this.audioInfo.format)
         }));
@@ -1725,6 +1732,7 @@
       _this.options = Object.assign({}, FlvReader.DEFAULTS, options);
       validateOptions(assertThisInitialized(assertThisInitialized(_this)));
       checkSupport(assertThisInitialized(assertThisInitialized(_this)));
+      _this.loaded = false;
       _this.debug = new Debug(assertThisInitialized(assertThisInitialized(_this)));
       _this.events = new Events(assertThisInitialized(assertThisInitialized(_this)));
       _this.workers = new Workers(assertThisInitialized(assertThisInitialized(_this)));
@@ -1753,6 +1761,7 @@
           mediaElement: '',
           url: '',
           debug: false,
+          live: false,
           headers: {}
         };
       }

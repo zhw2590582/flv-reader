@@ -4,14 +4,14 @@ export default class Debug {
         this.log = (name, ...args) => {
             flv.emit('log', name, ...args);
             if (debug) {
-                console.log(`[${name}]`, ...args);
+                console.log(`Flv: [${name}]`, ...args);
             }
         };
 
         this.warn = (name, ...args) => {
             flv.emit('warn', name, ...args);
             if (debug) {
-                console.warn(`[${name}]`, ...args);
+                console.warn(`Flv: [${name}]`, ...args);
             }
         };
     }

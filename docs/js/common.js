@@ -3,6 +3,7 @@
     var $urlInput = document.querySelector('.urlInput');
     var $playBtn = document.querySelector('.playBtn');
     var $fileInput = document.querySelector('.fileInput');
+    var $audioBtn = document.querySelector('.audioBtn');
 
     if (!location.port.trim()) {
         consola.creat({
@@ -39,5 +40,9 @@
     $fileInput.addEventListener('change', function () {
         const file = $fileInput.files[0];
         creatPlayer(file);
+    });
+
+    $audioBtn.addEventListener('click', function () {  
+        FlvReader.instances[0].transmuxer.audioTrack.download();
     });
 })();

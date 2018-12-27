@@ -23,6 +23,7 @@ html, body {
 
 .controller .controller-left {
     flex: 1;
+    height: 60px;
 }
 
 .controller .controller-left .urlInput {
