@@ -1349,7 +1349,7 @@
       value: function parse() {
         var debug = this.flv.debug;
 
-        if (!this.header) {
+        if (this.uint8.length >= 13 && !this.header) {
           var header = Object.create(null);
           header.signature = readString(this.read(3));
 
@@ -1373,8 +1373,8 @@
         }
 
         while (this.index < this.uint8.length) {
+          var restIndex = this.index;
           var tag = Object.create(null);
-          var startIndex = this.index;
 
           var _this$read5 = this.read(1);
 
@@ -1384,9 +1384,13 @@
           tag.dataSize = readBufferSum(this.read(3));
           tag.timestamp = this.read(4);
           tag.streamID = this.read(3);
-          tag.body = this.read(tag.dataSize);
-          this.tags.push(tag);
-          this.read(4);
+
+          if (tag.dataSize <= this.uint8.slice(this.index).length) {
+            tag.body = this.read(tag.dataSize);
+          } else {
+            this.index = restIndex;
+            break;
+          }
 
           switch (tag.tagType) {
             case 18:
@@ -1409,7 +1413,9 @@
               break;
           }
 
-          this.flv.emit('flvParseTag', tag, startIndex, this.index);
+          this.tags.push(tag);
+          this.read(4);
+          this.flv.emit('flvParseTag', tag);
         }
       }
     }, {

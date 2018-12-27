@@ -44,7 +44,7 @@ export default class Parse {
 
     parse() {
         const { debug } = this.flv;
-        if (!this.header) {
+        if (this.uint8.length >= 13 && !this.header) {
             const header = Object.create(null);
             header.signature = readString(this.read(3));
             [header.version] = this.read(1);
@@ -58,15 +58,19 @@ export default class Parse {
         }
 
         while (this.index < this.uint8.length) {
+            const restIndex = this.index;
             const tag = Object.create(null);
-            const startIndex = this.index;
             [tag.tagType] = this.read(1);
             tag.dataSize = readBufferSum(this.read(3));
             tag.timestamp = this.read(4);
             tag.streamID = this.read(3);
-            tag.body = this.read(tag.dataSize);
-            this.tags.push(tag);
-            this.read(4);
+
+            if (tag.dataSize <= this.uint8.slice(this.index).length) {
+                tag.body = this.read(tag.dataSize);
+            } else {
+                this.index = restIndex;
+                break;
+            }
             
             switch (tag.tagType) {
                 case 18:
@@ -86,7 +90,9 @@ export default class Parse {
                     break;
             }
 
-            this.flv.emit('flvParseTag', tag, startIndex, this.index);
+            this.tags.push(tag);
+            this.read(4);
+            this.flv.emit('flvParseTag', tag);
         }
     }
 
