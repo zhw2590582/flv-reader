@@ -5,7 +5,7 @@ export default class Transmuxer {
     constructor(flv) {
         this.audioTrack = new AudioTrack(flv);
         this.videoTrack = new VideoTrack(flv);
-        flv.on('flvParseTag', tag => {
+        flv.on('parseTag', tag => {
             switch (tag.tagType) {
                 case 9:
                     this.videoTrack.muxer(tag);

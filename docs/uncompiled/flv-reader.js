@@ -485,16 +485,18 @@
   }();
 
   function fetchRequest(flv, url) {
-    flv.emit('flvFetchStart');
+    flv.emit('streamStart');
     fetch(url, {
       headers: flv.options.headers
     }).then(function (response) {
       var reader = response.body.getReader();
       flv.on('destroy', function () {
         reader.cancel();
+        flv.debug.log('stream-cancel');
       });
       flv.on('streamCancel', function () {
         reader.cancel();
+        flv.debug.log('stream-cancel');
       });
 
       (function read() {
@@ -503,11 +505,11 @@
               value = _ref.value;
 
           if (done) {
-            flv.emit('flvFetchEnd');
+            flv.emit('streamEnd');
             return;
           }
 
-          flv.emit('flvFetching', new Uint8Array(value));
+          flv.emit('streaming', new Uint8Array(value));
           read();
         }).catch(function (error) {
           throw error;
@@ -517,7 +519,7 @@
   }
 
   function mozXhrRequest(flv, url) {
-    flv.emit('flvFetchStart');
+    flv.emit('streamStart');
     var proxy = flv.events.proxy,
         headers = flv.options.headers;
     var xhr = new XMLHttpRequest();
@@ -530,27 +532,29 @@
       flv.emit('readystatechange', xhr);
     });
     proxy(xhr, 'progress', function () {
-      flv.emit('flvFetching', new Uint8Array(xhr.response));
+      flv.emit('streaming', new Uint8Array(xhr.response));
     });
     proxy(xhr, 'loadend', function () {
-      flv.emit('flvFetchEnd');
+      flv.emit('streamEnd');
     });
     proxy(xhr, 'error', function (error) {
       throw error;
     });
     flv.on('destroy', function () {
       xhr.abort();
+      flv.debug.log('stream-cancel');
       throw createAbortError();
     });
     flv.on('streamCancel', function () {
       xhr.abort();
-      createAbortError();
+      flv.debug.log('stream-cancel');
+      throw createAbortError();
     });
     xhr.send();
   }
 
   function xhrRequest(flv, url) {
-    flv.emit('flvFetchStart');
+    flv.emit('streamStart');
     var proxy = flv.events.proxy,
         headers = flv.options.headers;
     var textEncoder = new TextEncoder();
@@ -567,37 +571,39 @@
     proxy(xhr, 'progress', function () {
       var rawText = xhr.responseText.substr(index);
       index = xhr.responseText.length;
-      flv.emit('flvFetching', textEncoder.encode(rawText, {
+      flv.emit('streaming', textEncoder.encode(rawText, {
         stream: true
       }));
     });
     proxy(xhr, 'loadend', function () {
-      flv.emit('flvFetching', textEncoder.encode('', {
+      flv.emit('streaming', textEncoder.encode('', {
         stream: false
       }));
-      flv.emit('flvFetchEnd');
+      flv.emit('streamEnd');
     });
     proxy(xhr, 'error', function (error) {
       throw error;
     });
     flv.on('destroy', function () {
       xhr.abort();
+      flv.debug.log('stream-cancel');
       throw createAbortError();
     });
     flv.on('streamCancel', function () {
       xhr.abort();
+      flv.debug.log('stream-cancel');
       createAbortError();
     });
     xhr.send();
   }
 
   function readFile(flv, file) {
-    flv.emit('flvFetchStart');
+    flv.emit('streamStart');
     var proxy = flv.events.proxy;
     var reader = new FileReader();
     proxy(reader, 'load', function (e) {
       var buffer = e.target.result;
-      flv.emit('flvFetchEnd', new Uint8Array(buffer));
+      flv.emit('streamEnd', new Uint8Array(buffer));
     });
     reader.readAsArrayBuffer(file);
   }
@@ -1322,16 +1328,16 @@
       this.header = null;
       this.tags = [];
       this.done = false;
-      flv.on('flvFetchStart', function () {
-        debug.log('flv-fetch-start', url);
+      flv.on('streamStart', function () {
+        debug.log('stream-start', url);
       });
-      flv.on('flvFetching', function (uint8) {
+      flv.on('streaming', function (uint8) {
         _this.uint8 = mergeBuffer(_this.uint8, uint8);
 
         _this.parse();
       });
-      flv.on('flvFetchEnd', function (uint8) {
-        debug.log('flv-fetch-end');
+      flv.on('streamEnd', function (uint8) {
+        debug.log('stream-end');
 
         if (uint8) {
           _this.uint8 = uint8;
@@ -1344,8 +1350,8 @@
         }
 
         _this.done = true;
-        flv.emit('flvParseDone');
-        debug.log('flv-parse-done');
+        flv.emit('parseDone');
+        debug.log('parse-done');
       });
     }
 
@@ -1373,8 +1379,8 @@
           header.headersize = readBufferSum(this.read(4));
           this.header = header;
           this.read(4);
-          this.flv.emit('flvParseHeader', this.header);
-          debug.log('flv-parse-header', this.header);
+          this.flv.emit('parseHeader', this.header);
+          debug.log('parse-header', this.header);
         }
 
         while (this.index < this.uint8.length) {
@@ -1426,7 +1432,7 @@
 
           this.read(4);
           this.tags.push(tag);
-          this.flv.emit('flvParseTag', tag);
+          this.flv.emit('parseTag', tag);
         }
       }
     }, {
@@ -1685,7 +1691,7 @@
 
     this.audioTrack = new AudioTrack(flv);
     this.videoTrack = new VideoTrack(flv);
-    flv.on('flvParseTag', function (tag) {
+    flv.on('parseTag', function (tag) {
       switch (tag.tagType) {
         case 9:
           _this.videoTrack.muxer(tag);

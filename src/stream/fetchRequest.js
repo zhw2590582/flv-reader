@@ -1,5 +1,5 @@
 export default function fetchRequest(flv, url) {
-    flv.emit('flvFetchStart');
+    flv.emit('streamStart');
     fetch(url, {
         headers: flv.options.headers
     }).then(response => {
@@ -7,10 +7,12 @@ export default function fetchRequest(flv, url) {
 
         flv.on('destroy', () => {
             reader.cancel();
+            flv.debug.log('stream-cancel');
         });
 
         flv.on('streamCancel', () => {
             reader.cancel();
+            flv.debug.log('stream-cancel');
         });
 
         (function read() {
@@ -18,10 +20,10 @@ export default function fetchRequest(flv, url) {
                 .read()
                 .then(({ done, value }) => {
                     if (done) {
-                        flv.emit('flvFetchEnd');
+                        flv.emit('streamEnd');
                         return;
                     }
-                    flv.emit('flvFetching', new Uint8Array(value));
+                    flv.emit('streaming', new Uint8Array(value));
                     read();
                 })
                 .catch(error => {

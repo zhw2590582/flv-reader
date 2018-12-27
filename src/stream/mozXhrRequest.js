@@ -1,7 +1,7 @@
 import { createAbortError } from '../utils';
 
 export default function mozXhrRequest(flv, url) {
-    flv.emit('flvFetchStart');
+    flv.emit('streamStart');
     const { events: { proxy }, options: { headers } } = flv;
     const xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
@@ -15,11 +15,11 @@ export default function mozXhrRequest(flv, url) {
     });
 
     proxy(xhr, 'progress', () => {
-        flv.emit('flvFetching', new Uint8Array(xhr.response));
+        flv.emit('streaming', new Uint8Array(xhr.response));
     });
 
     proxy(xhr, 'loadend', () => {
-        flv.emit('flvFetchEnd');
+        flv.emit('streamEnd');
     });
 
     proxy(xhr, 'error', error => {
@@ -28,12 +28,14 @@ export default function mozXhrRequest(flv, url) {
 
     flv.on('destroy', () => {
         xhr.abort();
+        flv.debug.log('stream-cancel');
         throw createAbortError();
     });
 
     flv.on('streamCancel', () => {
         xhr.abort();
-        createAbortError();
+        flv.debug.log('stream-cancel');
+        throw createAbortError();
     });
 
     xhr.send();

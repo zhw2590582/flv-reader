@@ -17,17 +17,17 @@ export default class Parse {
         this.tags = [];
         this.done = false;
 
-        flv.on('flvFetchStart', () => {
-            debug.log('flv-fetch-start', url);
+        flv.on('streamStart', () => {
+            debug.log('stream-start', url);
         });
 
-        flv.on('flvFetching', uint8 => {
+        flv.on('streaming', uint8 => {
             this.uint8 = mergeBuffer(this.uint8, uint8);
             this.parse();
         });
 
-        flv.on('flvFetchEnd', uint8 => {
-            debug.log('flv-fetch-end');
+        flv.on('streamEnd', uint8 => {
+            debug.log('stream-end');
             if (uint8) {
                 this.uint8 = uint8;
                 this.index = 0;
@@ -37,8 +37,8 @@ export default class Parse {
                 this.parse();
             }
             this.done = true;
-            flv.emit('flvParseDone');
-            debug.log('flv-parse-done');
+            flv.emit('parseDone');
+            debug.log('parse-done');
         });
     }
 
@@ -53,8 +53,8 @@ export default class Parse {
             header.headersize = readBufferSum(this.read(4));
             this.header = header;
             this.read(4);
-            this.flv.emit('flvParseHeader', this.header);
-            debug.log('flv-parse-header', this.header);
+            this.flv.emit('parseHeader', this.header);
+            debug.log('parse-header', this.header);
         }
 
         while (this.index < this.uint8.length) {
@@ -99,7 +99,7 @@ export default class Parse {
 
             this.read(4);
             this.tags.push(tag);
-            this.flv.emit('flvParseTag', tag);
+            this.flv.emit('parseTag', tag);
         }
     }
 
