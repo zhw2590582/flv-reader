@@ -319,7 +319,8 @@
     download: download
   });
 
-  function checkSupport(options) {
+  function checkSupport(_ref) {
+    var options = _ref.options;
     var MP4H264MimeCodec = 'video/mp4; codecs="avc1.42001E, mp4a.40.2"';
     var canPlay = options.mediaElement.canPlayType(MP4H264MimeCodec);
     errorHandle(window.MediaSource && window.MediaSource.isTypeSupported(MP4H264MimeCodec) && (canPlay === 'probably' || canPlay === 'maybe'), "Unsupported MIME type or codec: ".concat(MP4H264MimeCodec));
@@ -327,11 +328,15 @@
     errorHandle(typeof window.fetch === 'function', "Unsupported 'fetch' method");
   }
 
-  function validateOptions(options) {
-    var mediaElement = options.mediaElement,
-        url = options.url;
-    errorHandle(mediaElement instanceof HTMLVideoElement, 'The first parameter is not a video tag element');
-    errorHandle(typeof url === 'string' || url instanceof File && url.type === 'video/x-flv', 'The second parameter is not a string type or flv file');
+  function validateOptions(flv) {
+    var _flv$options = flv.options,
+        mediaElement = _flv$options.mediaElement,
+        url = _flv$options.url;
+    errorHandle(mediaElement instanceof HTMLVideoElement, "The 'mediaElement' option is not a video tag element");
+    errorHandle(flv.constructor.instances.every(function (item) {
+      return item.options.mediaElement !== mediaElement;
+    }), 'Cannot mount multiple instances on the same media element, please destroy the instance first');
+    errorHandle(typeof url === 'string' || url instanceof File && url.type === 'video/x-flv', "The 'url' option is not a string type or flv file");
   }
 
   var Debug = function Debug(flv) {
@@ -1615,20 +1620,20 @@
 
   var id = 0;
 
-  var Flv =
+  var FlvReader =
   /*#__PURE__*/
   function (_Emitter) {
-    inherits(Flv, _Emitter);
+    inherits(FlvReader, _Emitter);
 
-    function Flv(options) {
+    function FlvReader(options) {
       var _this;
 
-      classCallCheck(this, Flv);
+      classCallCheck(this, FlvReader);
 
-      _this = possibleConstructorReturn(this, getPrototypeOf(Flv).call(this));
-      _this.options = Object.assign({}, Flv.DEFAULTS, options);
-      validateOptions(_this.options);
-      checkSupport(_this.options);
+      _this = possibleConstructorReturn(this, getPrototypeOf(FlvReader).call(this));
+      _this.options = Object.assign({}, FlvReader.DEFAULTS, options);
+      validateOptions(assertThisInitialized(assertThisInitialized(_this)));
+      checkSupport(assertThisInitialized(assertThisInitialized(_this)));
       _this.debug = new Debug(assertThisInitialized(assertThisInitialized(_this)));
       _this.events = new Events(assertThisInitialized(assertThisInitialized(_this)));
       _this.workers = new Workers(assertThisInitialized(assertThisInitialized(_this)));
@@ -1638,16 +1643,16 @@
       _this.stream = new Stream(assertThisInitialized(assertThisInitialized(_this)));
       id += 1;
       _this.id = id;
-      Flv.instances.push(assertThisInitialized(assertThisInitialized(_this)));
+      FlvReader.instances.push(assertThisInitialized(assertThisInitialized(_this)));
       return _this;
     }
 
-    createClass(Flv, [{
+    createClass(FlvReader, [{
       key: "destroy",
       value: function destroy() {
         this.events.destroy();
         this.workers.killAll();
-        Flv.instances.splice(Flv.instances.indexOf(this), 1);
+        FlvReader.instances.splice(FlvReader.instances.indexOf(this), 1);
         this.emit('destroy');
       }
     }], [{
@@ -1677,15 +1682,15 @@
       }
     }]);
 
-    return Flv;
+    return FlvReader;
   }(tinyEmitter);
 
-  Object.defineProperty(Flv, 'instances', {
+  Object.defineProperty(FlvReader, 'instances', {
     value: []
   });
-  window.Flv = Flv;
+  window.FlvReader = FlvReader;
 
-  exports.default = Flv;
+  exports.default = FlvReader;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 

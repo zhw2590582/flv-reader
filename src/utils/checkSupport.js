@@ -1,6 +1,6 @@
 import { errorHandle } from '.';
 
-export default function checkSupport(options) {
+export default function checkSupport({ options }) {
     const MP4H264MimeCodec = 'video/mp4; codecs="avc1.42001E, mp4a.40.2"';
     const canPlay = options.mediaElement.canPlayType(MP4H264MimeCodec);
     errorHandle(

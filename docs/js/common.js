@@ -20,11 +20,11 @@
     }
 
     function creatPlayer(url) {
-        Flv.instances.forEach(function(flv) {
+        FlvReader.instances.forEach(function(flv) {
             flv.destroy();
         });
 
-        var flv = new Flv({
+        var flv = new FlvReader({
             mediaElement: $video,
             url: url,
             debug: true,

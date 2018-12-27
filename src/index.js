@@ -12,12 +12,12 @@ import * as utils from './utils';
 import config from './config';
 
 let id = 0;
-class Flv extends Emitter {
+class FlvReader extends Emitter {
     constructor(options) {
         super();
-        this.options = Object.assign({}, Flv.DEFAULTS, options);
-        validateOptions(this.options);
-        checkSupport(this.options);
+        this.options = Object.assign({}, FlvReader.DEFAULTS, options);
+        validateOptions(this);
+        checkSupport(this);
         this.debug = new Debug(this);
         this.events = new Events(this);
         this.workers = new Workers(this);
@@ -27,7 +27,7 @@ class Flv extends Emitter {
         this.stream = new Stream(this);
         id += 1;
         this.id = id;
-        Flv.instances.push(this);
+        FlvReader.instances.push(this);
     }
 
     static get DEFAULTS() {
@@ -54,14 +54,14 @@ class Flv extends Emitter {
     destroy() {
         this.events.destroy();
         this.workers.killAll();
-        Flv.instances.splice(Flv.instances.indexOf(this), 1);
+        FlvReader.instances.splice(FlvReader.instances.indexOf(this), 1);
         this.emit('destroy');
     }
 }
 
-Object.defineProperty(Flv, 'instances', {
+Object.defineProperty(FlvReader, 'instances', {
     value: [],
 });
 
-window.Flv = Flv;
-export default Flv;
+window.FlvReader = FlvReader;
+export default FlvReader;

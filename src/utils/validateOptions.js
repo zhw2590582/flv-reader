@@ -1,10 +1,16 @@
 import { errorHandle } from '.';
 
-export default function validateOptions(options) {
-    const { mediaElement, url } = options;
-    errorHandle(mediaElement instanceof HTMLVideoElement, 'The first parameter is not a video tag element');
+export default function validateOptions(flv) {
+    const { mediaElement, url } = flv.options;
+    errorHandle(mediaElement instanceof HTMLVideoElement, "The 'mediaElement' option is not a video tag element");
+
+    errorHandle(
+        flv.constructor.instances.every(item => item.options.mediaElement !== mediaElement),
+        'Cannot mount multiple instances on the same media element, please destroy the instance first',
+    );
+
     errorHandle(
         typeof url === 'string' || (url instanceof File && url.type === 'video/x-flv'),
-        'The second parameter is not a string type or flv file',
+        "The 'url' option is not a string type or flv file",
     );
 }
