@@ -21,7 +21,7 @@ export default class MP3 {
         };
     }
 
-    muxer(tag, requestHeader) {
+    demuxer(tag, requestHeader) {
         const { debug } = this.flv;
         const packet = tag.body.slice(1);
         let header = {};

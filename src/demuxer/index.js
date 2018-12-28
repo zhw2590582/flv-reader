@@ -8,10 +8,10 @@ export default class Demuxer {
         flv.on('parseTag', tag => {
             switch (tag.tagType) {
                 case 9:
-                    this.videoTrack.muxer(tag);
+                    this.videoTrack.demuxer(tag);
                     break;
                 case 8:
-                    this.audioTrack.muxer(tag);
+                    this.audioTrack.demuxer(tag);
                     break;
                 default:
                     break;

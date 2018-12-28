@@ -5,7 +5,7 @@ export default class VideoTrack {
         this.h264 = new H264(flv, this);
     }
 
-    muxer(tag) {
-        //
+    demuxer(tag) {
+        this.h264.demuxer(tag);
     }
 }

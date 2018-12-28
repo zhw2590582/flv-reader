@@ -1490,8 +1490,8 @@
     }
 
     createClass(AAC, [{
-      key: "muxer",
-      value: function muxer(tag, requestHeader) {
+      key: "demuxer",
+      value: function demuxer(tag, requestHeader) {
         var debug = this.flv.debug;
         var packet = tag.body.slice(1);
         var packetType = packet[0];
@@ -1614,8 +1614,8 @@
     }
 
     createClass(MP3, [{
-      key: "muxer",
-      value: function muxer(tag, requestHeader) {
+      key: "demuxer",
+      value: function demuxer(tag, requestHeader) {
         var debug = this.flv.debug;
         var packet = tag.body.slice(1);
         var header = {};
@@ -1721,8 +1721,8 @@
     }
 
     createClass(AudioTrack, [{
-      key: "muxer",
-      value: function muxer(tag) {
+      key: "demuxer",
+      value: function demuxer(tag) {
         var debug = this.flv.debug;
         var soundFormat = tag.meta.soundFormat;
 
@@ -1731,9 +1731,9 @@
         } else {
           var formatName = AudioTrack.SOUND_FORMATS[soundFormat];
 
-          var _this$formatName$muxe = this[formatName].muxer(tag, !this.audioHeader),
-              frame = _this$formatName$muxe.frame,
-              header = _this$formatName$muxe.header;
+          var _this$formatName$demu = this[formatName].demuxer(tag, !this.audioHeader),
+              frame = _this$formatName$demu.frame,
+              header = _this$formatName$demu.header;
 
           this.audioBuffers.push(frame);
           this.flv.emit('audioFrame', frame);
@@ -1786,8 +1786,8 @@
     }
 
     createClass(H264, [{
-      key: "muxer",
-      value: function muxer(tag) {//
+      key: "demuxer",
+      value: function demuxer(tag) {//
       }
     }]);
 
@@ -1804,8 +1804,9 @@
     }
 
     createClass(VideoTrack, [{
-      key: "muxer",
-      value: function muxer(tag) {//
+      key: "demuxer",
+      value: function demuxer(tag) {
+        this.h264.demuxer(tag);
       }
     }]);
 
@@ -1822,12 +1823,12 @@
     flv.on('parseTag', function (tag) {
       switch (tag.tagType) {
         case 9:
-          _this.videoTrack.muxer(tag);
+          _this.videoTrack.demuxer(tag);
 
           break;
 
         case 8:
-          _this.audioTrack.muxer(tag);
+          _this.audioTrack.demuxer(tag);
 
           break;
 

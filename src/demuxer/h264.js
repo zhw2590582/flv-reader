@@ -3,7 +3,7 @@ export default class H264 {
         this.flv = flv;
     }
 
-    muxer(tag) {
+    demuxer(tag) {
         //
     }
 }

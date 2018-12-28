@@ -54,7 +54,7 @@ export default class AAC {
         return AudioSpecificConfig;
     }
 
-    muxer(tag, requestHeader) {
+    demuxer(tag, requestHeader) {
         const { debug } = this.flv;
         const packet = tag.body.slice(1);
         const packetType = packet[0];

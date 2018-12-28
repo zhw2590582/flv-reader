@@ -19,14 +19,14 @@ export default class AudioTrack {
         };
     }
 
-    muxer(tag) {
+    demuxer(tag) {
         const { debug } = this.flv;
         const { soundFormat } = tag.meta;
         if (soundFormat !== 10 && soundFormat !== 2) {
             debug.warn('unsupported-audio-format', soundFormat);
         } else {
             const formatName = AudioTrack.SOUND_FORMATS[soundFormat];
-            const { frame, header } = this[formatName].muxer(tag, !this.audioHeader);
+            const { frame, header } = this[formatName].demuxer(tag, !this.audioHeader);
             this.audioBuffers.push(frame);
             this.flv.emit('audioFrame', frame);
             if (!this.audioHeader) {
