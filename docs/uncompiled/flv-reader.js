@@ -1317,7 +1317,7 @@
       classCallCheck(this, Parse);
 
       this.flv = flv;
-      var url = flv.options.url,
+      var options = flv.options,
           debug = flv.debug;
       this.uint8 = new Uint8Array(0);
       this.index = 0;
@@ -1327,7 +1327,7 @@
       this.videoTagMeta = null;
       this.audioTagMeta = null;
       flv.on('streamStart', function () {
-        debug.log('stream-start', url);
+        debug.log('stream-start', options.url);
       });
       flv.on('streaming', function (uint8) {
         _this.uint8 = mergeBuffer(_this.uint8, uint8);
@@ -1343,6 +1343,9 @@
           _this.header = null;
           _this.scripTag = null;
           _this.tags = [];
+          _this.scripTagMeta = null;
+          _this.videoTagMeta = null;
+          _this.audioTagMeta = null;
 
           _this.parse();
         }
@@ -1435,7 +1438,7 @@
               if (!this.audioTagMeta) {
                 this.audioTagMeta = tag.meta;
                 this.flv.emit('audioTagMeta', tag.meta);
-                debug.log('video-tag-meta', tag.meta);
+                debug.log('audio-tag-meta', tag.meta);
               }
 
               break;

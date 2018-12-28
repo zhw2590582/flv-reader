@@ -7,10 +7,7 @@ import audioTag from './audioTag';
 export default class Parse {
     constructor(flv) {
         this.flv = flv;
-        const {
-            options: { url },
-            debug,
-        } = flv;
+        const { options, debug } = flv;
         this.uint8 = new Uint8Array(0);
         this.index = 0;
         this.header = null;
@@ -21,7 +18,7 @@ export default class Parse {
         this.audioTagMeta = null;
 
         flv.on('streamStart', () => {
-            debug.log('stream-start', url);
+            debug.log('stream-start', options.url);
         });
 
         flv.on('streaming', uint8 => {
@@ -37,6 +34,9 @@ export default class Parse {
                 this.header = null;
                 this.scripTag = null;
                 this.tags = [];
+                this.scripTagMeta = null;
+                this.videoTagMeta = null;
+                this.audioTagMeta = null;
                 this.parse();
             }
 
@@ -104,7 +104,7 @@ export default class Parse {
                     if (!this.audioTagMeta) {
                         this.audioTagMeta = tag.meta;
                         this.flv.emit('audioTagMeta', tag.meta);
-                        debug.log('video-tag-meta', tag.meta);
+                        debug.log('audio-tag-meta', tag.meta);
                     }
                     break;
                 default:
