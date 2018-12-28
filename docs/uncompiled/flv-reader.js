@@ -1490,8 +1490,8 @@
         if (requestHeader) {
           header = {
             format: 'aac',
-            sampleRate: AAC.AAC_SAMPLE_RATES[this.AudioSpecificConfig.samplingFrequencyIndex],
-            channels: AAC.AAC_CHANNELS[this.AudioSpecificConfig.channelConfiguration],
+            sampleRate: AAC.SAMPLERATES[this.AudioSpecificConfig.samplingFrequencyIndex],
+            channels: AAC.CHANNELS[this.AudioSpecificConfig.channelConfiguration],
             codec: "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType)
           };
         }
@@ -1541,7 +1541,7 @@
         return AudioSpecificConfig;
       }
     }, {
-      key: "AAC_SAMPLE_RATES",
+      key: "SAMPLERATES",
       get: function get() {
         return {
           0: 96000,
@@ -1563,7 +1563,7 @@
         };
       }
     }, {
-      key: "AAC_CHANNELS",
+      key: "CHANNELS",
       get: function get() {
         return {
           0: 0,

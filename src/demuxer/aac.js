@@ -11,7 +11,7 @@ export default class AAC {
         };
     }
 
-    static get AAC_SAMPLE_RATES() {
+    static get SAMPLERATES() {
         return {
             0: 96000,
             1: 88200,
@@ -32,7 +32,7 @@ export default class AAC {
         };
     }
 
-    static get AAC_CHANNELS() {
+    static get CHANNELS() {
         return {
             0: 0,
             1: 1,
@@ -76,8 +76,8 @@ export default class AAC {
         if (requestHeader) {
             header = {
                 format: 'aac',
-                sampleRate: AAC.AAC_SAMPLE_RATES[this.AudioSpecificConfig.samplingFrequencyIndex],
-                channels: AAC.AAC_CHANNELS[this.AudioSpecificConfig.channelConfiguration],
+                sampleRate: AAC.SAMPLERATES[this.AudioSpecificConfig.samplingFrequencyIndex],
+                channels: AAC.CHANNELS[this.AudioSpecificConfig.channelConfiguration],
                 codec: `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`,
             }
         }
