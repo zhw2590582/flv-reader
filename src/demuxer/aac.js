@@ -54,11 +54,12 @@ export default class AAC {
         return AudioSpecificConfig;
     }
 
-    muxer(tag) {
+    muxer(tag, requestHeader) {
         const { debug } = this.flv;
         const packet = tag.body.slice(1);
         const packetType = packet[0];
         let frame = new Uint8Array(0);
+        let header = {};
 
         if (packetType === 0) {
             const packetData = packet.slice(1);
@@ -72,14 +73,18 @@ export default class AAC {
             frame = mergeBuffer(ADTSHeader, ADTSBody);
         }
 
-        return {
-            frame,
-            info: {
+        if (requestHeader) {
+            header = {
                 format: 'aac',
                 sampleRate: AAC.AAC_SAMPLE_RATES[this.AudioSpecificConfig.samplingFrequencyIndex],
                 channels: AAC.AAC_CHANNELS[this.AudioSpecificConfig.channelConfiguration],
                 codec: `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`,
-            },
+            }
+        }
+
+        return {
+            frame,
+            header,
         };
     }
 

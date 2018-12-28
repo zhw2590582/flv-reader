@@ -1468,11 +1468,12 @@
 
     createClass(AAC, [{
       key: "muxer",
-      value: function muxer(tag) {
+      value: function muxer(tag, requestHeader) {
         var debug = this.flv.debug;
         var packet = tag.body.slice(1);
         var packetType = packet[0];
         var frame = new Uint8Array(0);
+        var header = {};
 
         if (packetType === 0) {
           var packetData = packet.slice(1);
@@ -1486,14 +1487,18 @@
           frame = mergeBuffer(ADTSHeader, ADTSBody);
         }
 
-        return {
-          frame: frame,
-          info: {
+        if (requestHeader) {
+          header = {
             format: 'aac',
             sampleRate: AAC.AAC_SAMPLE_RATES[this.AudioSpecificConfig.samplingFrequencyIndex],
             channels: AAC.AAC_CHANNELS[this.AudioSpecificConfig.channelConfiguration],
             codec: "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType)
-          }
+          };
+        }
+
+        return {
+          frame: frame,
+          header: header
         };
       }
     }, {
@@ -1587,65 +1592,73 @@
 
     createClass(MP3, [{
       key: "muxer",
-      value: function muxer(tag) {
+      value: function muxer(tag, requestHeader) {
         var debug = this.flv.debug;
         var packet = tag.body.slice(1);
-        errorHandle(packet.length >= 4, 'MP3 header missing');
-        errorHandle(packet[0] === 0xff, 'MP3 header mismatch');
-        var ver = packet[1] >>> 3 & 0x03;
-        var layer = (packet[1] & 0x06) >> 1;
-        var bitrateIndex = (packet[2] & 0xf0) >>> 4;
-        var samplingFreqIndex = (packet[2] & 0x0c) >>> 2;
-        var channelMode = packet[3] >>> 6 & 0x03;
-        var channels = channelMode !== 3 ? 2 : 1;
-        var sampleRate = 0;
-        var bitRate = 0;
+        var header = {};
 
-        switch (ver) {
-          case 0:
-            sampleRate = MP3.SAMPLERATES['25'][samplingFreqIndex];
-            break;
+        if (requestHeader) {
+          errorHandle(packet.length >= 4, 'MP3 header missing');
+          errorHandle(packet[0] === 0xff, 'MP3 header mismatch');
+          var ver = packet[1] >>> 3 & 0x03;
+          var layer = (packet[1] & 0x06) >> 1;
+          var bitrateIndex = (packet[2] & 0xf0) >>> 4;
+          var samplingFreqIndex = (packet[2] & 0x0c) >>> 2;
+          var channelMode = packet[3] >>> 6 & 0x03;
+          var channels = channelMode !== 3 ? 2 : 1;
+          var sampleRate = 0;
+          var bitRate = 0;
 
-          case 2:
-            sampleRate = MP3.SAMPLERATES['20'][samplingFreqIndex];
-            break;
+          switch (ver) {
+            case 0:
+              sampleRate = MP3.SAMPLERATES['25'][samplingFreqIndex];
+              break;
 
-          case 3:
-            sampleRate = MP3.SAMPLERATES['10'][samplingFreqIndex];
-            break;
+            case 2:
+              sampleRate = MP3.SAMPLERATES['20'][samplingFreqIndex];
+              break;
 
-          default:
-            debug.warn("Unknown mp3 version: ".concat(ver));
-            break;
-        }
+            case 3:
+              sampleRate = MP3.SAMPLERATES['10'][samplingFreqIndex];
+              break;
 
-        switch (layer) {
-          case 1:
-            bitRate = MP3.BITRATES.L3[bitrateIndex];
-            break;
+            default:
+              debug.warn("Unknown mp3 version: ".concat(ver));
+              break;
+          }
 
-          case 2:
-            bitRate = MP3.BITRATES.L2[bitrateIndex];
-            break;
+          switch (layer) {
+            case 1:
+              bitRate = MP3.BITRATES.L3[bitrateIndex];
+              break;
 
-          case 3:
-            bitRate = MP3.BITRATES.L1[bitrateIndex];
-            break;
+            case 2:
+              bitRate = MP3.BITRATES.L2[bitrateIndex];
+              break;
 
-          default:
-            debug.warn("Unknown mp3 layer: ".concat(layer));
-            break;
-        }
+            case 3:
+              bitRate = MP3.BITRATES.L1[bitrateIndex];
+              break;
 
-        return {
-          frame: packet,
-          info: {
+            default:
+              debug.warn("Unknown mp3 layer: ".concat(layer));
+              break;
+          }
+
+          header = {
+            ver: ver,
+            layer: layer,
             bitRate: bitRate,
             sampleRate: sampleRate,
             channels: channels,
             format: 'mp3',
             codec: 'mp3'
-          }
+          };
+        }
+
+        return {
+          frame: packet,
+          header: header
         };
       }
     }], [{
@@ -1679,7 +1692,7 @@
 
       this.flv = flv;
       this.audioBuffers = [];
-      this.audioInfo = null;
+      this.audioHeader = null;
       this.aac = new AAC(flv, this);
       this.mp3 = new MP3(flv, this);
     }
@@ -1695,17 +1708,17 @@
         } else {
           var formatName = AudioTrack.SOUND_FORMATS[soundFormat];
 
-          var _this$formatName$muxe = this[formatName].muxer(tag),
+          var _this$formatName$muxe = this[formatName].muxer(tag, !this.audioHeader),
               frame = _this$formatName$muxe.frame,
-              info = _this$formatName$muxe.info;
+              header = _this$formatName$muxe.header;
 
           this.audioBuffers.push(frame);
           this.flv.emit('audioFrame', frame);
 
-          if (!this.audioInfo) {
-            this.audioInfo = info;
-            this.flv.emit('audioInfo', this.audioInfo);
-            debug.log('audio-info', this.audioInfo);
+          if (!this.audioHeader) {
+            this.audioHeader = header;
+            this.flv.emit('audioHeader', this.audioHeader);
+            debug.log('audio-header', this.audioHeader);
           }
         }
       }
@@ -1715,17 +1728,17 @@
         var _this$flv = this.flv,
             loaded = _this$flv.loaded,
             debug = _this$flv.debug;
-        errorHandle(this.audioInfo && this.audioBuffers.length > 0, 'Audio data seems to be not ready');
+        errorHandle(this.audioHeader && this.audioBuffers.length > 0, 'Audio data seems to be not ready');
 
         if (!loaded) {
           debug.warn('Audio data does not seem to be loaded completely');
         }
 
         var url = URL.createObjectURL(new Blob([mergeBuffer.apply(void 0, toConsumableArray(this.audioBuffers))], {
-          type: "audio/".concat(this.audioInfo.format)
+          type: "audio/".concat(this.audioHeader.format)
         }));
 
-        download(url, "audioTrack.".concat(this.audioInfo.format));
+        download(url, "audioTrack.".concat(this.audioHeader.format));
       }
     }], [{
       key: "SOUND_FORMATS",

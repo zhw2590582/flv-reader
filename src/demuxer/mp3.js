@@ -21,61 +21,67 @@ export default class MP3 {
         };
     }
 
-    muxer(tag) {
+    muxer(tag, requestHeader) {
         const { debug } = this.flv;
         const packet = tag.body.slice(1);
-        errorHandle(packet.length >= 4, 'MP3 header missing');
-        errorHandle(packet[0] === 0xff, 'MP3 header mismatch');
+        let header = {};
 
-        const ver = (packet[1] >>> 3) & 0x03;
-        const layer = (packet[1] & 0x06) >> 1;
-        const bitrateIndex = (packet[2] & 0xf0) >>> 4;
-        const samplingFreqIndex = (packet[2] & 0x0c) >>> 2;
-        const channelMode = (packet[3] >>> 6) & 0x03;
-        const channels = channelMode !== 3 ? 2 : 1;
+        if (requestHeader) {
+            errorHandle(packet.length >= 4, 'MP3 header missing');
+            errorHandle(packet[0] === 0xff, 'MP3 header mismatch');
+            const ver = (packet[1] >>> 3) & 0x03;
+            const layer = (packet[1] & 0x06) >> 1;
+            const bitrateIndex = (packet[2] & 0xf0) >>> 4;
+            const samplingFreqIndex = (packet[2] & 0x0c) >>> 2;
+            const channelMode = (packet[3] >>> 6) & 0x03;
+            const channels = channelMode !== 3 ? 2 : 1;
+            let sampleRate = 0;
+            let bitRate = 0;
 
-        let sampleRate = 0;
-        let bitRate = 0;
+            switch (ver) {
+                case 0:
+                    sampleRate = MP3.SAMPLERATES['25'][samplingFreqIndex];
+                    break;
+                case 2:
+                    sampleRate = MP3.SAMPLERATES['20'][samplingFreqIndex];
+                    break;
+                case 3:
+                    sampleRate = MP3.SAMPLERATES['10'][samplingFreqIndex];
+                    break;
+                default:
+                    debug.warn(`Unknown mp3 version: ${ver}`);
+                    break;
+            }
 
-        switch (ver) {
-            case 0:
-                sampleRate = MP3.SAMPLERATES['25'][samplingFreqIndex];
-                break;
-            case 2:
-                sampleRate = MP3.SAMPLERATES['20'][samplingFreqIndex];
-                break;
-            case 3:
-                sampleRate = MP3.SAMPLERATES['10'][samplingFreqIndex];
-                break;
-            default:
-                debug.warn(`Unknown mp3 version: ${ver}`);
-                break;
-        }
+            switch (layer) {
+                case 1:
+                    bitRate = MP3.BITRATES.L3[bitrateIndex];
+                    break;
+                case 2:
+                    bitRate = MP3.BITRATES.L2[bitrateIndex];
+                    break;
+                case 3:
+                    bitRate = MP3.BITRATES.L1[bitrateIndex];
+                    break;
+                default:
+                    debug.warn(`Unknown mp3 layer: ${layer}`);
+                    break;
+            }
 
-        switch (layer) {
-            case 1:
-                bitRate = MP3.BITRATES.L3[bitrateIndex];
-                break;
-            case 2:
-                bitRate = MP3.BITRATES.L2[bitrateIndex];
-                break;
-            case 3:
-                bitRate = MP3.BITRATES.L1[bitrateIndex];
-                break;
-            default:
-                debug.warn(`Unknown mp3 layer: ${layer}`);
-                break;
-        }
-
-        return {
-            frame: packet,
-            info: {
+            header = {
+                ver,
+                layer,
                 bitRate,
                 sampleRate,
                 channels,
                 format: 'mp3',
                 codec: 'mp3',
-            },
+            };
+        }
+
+        return {
+            frame: packet,
+            header,
         };
     }
 }

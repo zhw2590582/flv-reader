@@ -7,7 +7,7 @@ export default class AudioTrack {
     constructor(flv) {
         this.flv = flv;
         this.audioBuffers = [];
-        this.audioInfo = null;
+        this.audioHeader = null;
         this.aac = new AAC(flv, this);
         this.mp3 = new MP3(flv, this);
     }
@@ -26,28 +26,28 @@ export default class AudioTrack {
             debug.warn('unsupported-audio-format', soundFormat);
         } else {
             const formatName = AudioTrack.SOUND_FORMATS[soundFormat];
-            const { frame, info } = this[formatName].muxer(tag);
+            const { frame, header } = this[formatName].muxer(tag, !this.audioHeader);
             this.audioBuffers.push(frame);
             this.flv.emit('audioFrame', frame);
-            if (!this.audioInfo) {
-                this.audioInfo = info;
-                this.flv.emit('audioInfo', this.audioInfo);
-                debug.log('audio-info', this.audioInfo);
+            if (!this.audioHeader) {
+                this.audioHeader = header;
+                this.flv.emit('audioHeader', this.audioHeader);
+                debug.log('audio-header', this.audioHeader);
             }
         }
     }
 
     download() {
         const { loaded, debug } = this.flv;
-        errorHandle(this.audioInfo && this.audioBuffers.length > 0, 'Audio data seems to be not ready');
+        errorHandle(this.audioHeader && this.audioBuffers.length > 0, 'Audio data seems to be not ready');
         if (!loaded) {
             debug.warn('Audio data does not seem to be loaded completely');
         }
         const url = URL.createObjectURL(
             new Blob([mergeBuffer(...this.audioBuffers)], {
-                type: `audio/${this.audioInfo.format}`,
+                type: `audio/${this.audioHeader.format}`,
             }),
         );
-        download(url, `audioTrack.${this.audioInfo.format}`);
+        download(url, `audioTrack.${this.audioHeader.format}`);
     }
 }
