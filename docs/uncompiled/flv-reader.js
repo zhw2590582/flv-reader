@@ -492,7 +492,6 @@
       var reader = response.body.getReader();
       flv.on('destroy', function () {
         reader.cancel();
-        flv.debug.log('stream-cancel');
       });
       flv.on('streamCancel', function () {
         reader.cancel();
@@ -542,7 +541,6 @@
     });
     flv.on('destroy', function () {
       xhr.abort();
-      flv.debug.log('stream-cancel');
     });
     flv.on('streamCancel', function () {
       xhr.abort();
@@ -584,7 +582,6 @@
     });
     flv.on('destroy', function () {
       xhr.abort();
-      flv.debug.log('stream-cancel');
     });
     flv.on('streamCancel', function () {
       xhr.abort();

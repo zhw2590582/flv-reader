@@ -7,7 +7,6 @@ export default function fetchRequest(flv, url) {
 
         flv.on('destroy', () => {
             reader.cancel();
-            flv.debug.log('stream-cancel');
         });
 
         flv.on('streamCancel', () => {

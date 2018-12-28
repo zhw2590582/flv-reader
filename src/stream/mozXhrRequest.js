@@ -26,7 +26,6 @@ export default function mozXhrRequest(flv, url) {
 
     flv.on('destroy', () => {
         xhr.abort();
-        flv.debug.log('stream-cancel');
     });
 
     flv.on('streamCancel', () => {
