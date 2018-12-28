@@ -2,9 +2,8 @@ import { errorHandle } from '../utils';
 import { mergeBuffer } from '../utils/buffer';
 
 export default class AAC {
-    constructor(flv, audioTrack) {
+    constructor(flv) {
         this.flv = flv;
-        this.audioTrack = audioTrack;
         this.AudioSpecificConfig = {
             audioObjectType: 0,
             samplingFrequencyIndex: 0,

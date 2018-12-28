@@ -1,7 +1,7 @@
 import AudioTrack from './audioTrack';
 import VideoTrack from './videoTrack';
 
-export default class Transmuxer {
+export default class Demuxer {
     constructor(flv) {
         this.audioTrack = new AudioTrack(flv);
         this.videoTrack = new VideoTrack(flv);

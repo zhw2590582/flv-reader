@@ -1,9 +1,8 @@
 import { mergeBuffer } from '../utils/buffer';
 
 export default class MP3 {
-    constructor(flv, audioTrack) {
+    constructor(flv) {
         this.flv = flv;
-        this.audioTrack = audioTrack;
     }
 
     muxer(tag) {

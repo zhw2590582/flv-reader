@@ -6,7 +6,7 @@ import MP3 from './mp3';
 export default class AudioTrack {
     constructor(flv) {
         this.flv = flv;
-        this.audioBuffers = new Uint8Array(0);
+        this.audioBuffers = [];
         this.audioInfo = null;
         this.aac = new AAC(flv, this);
         this.mp3 = new MP3(flv, this);
@@ -27,8 +27,8 @@ export default class AudioTrack {
         } else {
             const formatName = AudioTrack.SOUND_FORMATS[soundFormat];
             const { frame, info } = this[formatName].muxer(tag);
-            this.flv.emit('addAudioFrame', frame);
-            this.audioBuffers = mergeBuffer(this.audioBuffers, frame);
+            this.audioBuffers.push(frame);
+            this.flv.emit('audioFrame', frame);
             if (!this.audioInfo) {
                 this.audioInfo = info;
                 this.flv.emit('audioInfo', this.audioInfo);
@@ -44,7 +44,7 @@ export default class AudioTrack {
             debug.warn('Audio data does not seem to be loaded completely');
         }
         const url = URL.createObjectURL(
-            new Blob([this.audioBuffers], {
+            new Blob([mergeBuffer(...this.audioBuffers)], {
                 type: `audio/${this.audioInfo.format}`,
             }),
         );

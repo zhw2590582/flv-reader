@@ -1,7 +1,6 @@
 export default class H264 {
-    constructor(flv, videoTrack) {
+    constructor(flv) {
         this.flv = flv;
-        this.videoTrack = videoTrack;
     }
 
     muxer(tag) {

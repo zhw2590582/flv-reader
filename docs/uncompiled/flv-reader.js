@@ -1455,11 +1455,10 @@
   var AAC =
   /*#__PURE__*/
   function () {
-    function AAC(flv, audioTrack) {
+    function AAC(flv) {
       classCallCheck(this, AAC);
 
       this.flv = flv;
-      this.audioTrack = audioTrack;
       this.AudioSpecificConfig = {
         audioObjectType: 0,
         samplingFrequencyIndex: 0,
@@ -1556,11 +1555,10 @@
   var MP3 =
   /*#__PURE__*/
   function () {
-    function MP3(flv, audioTrack) {
+    function MP3(flv) {
       classCallCheck(this, MP3);
 
       this.flv = flv;
-      this.audioTrack = audioTrack;
     }
 
     createClass(MP3, [{
@@ -1588,7 +1586,7 @@
       classCallCheck(this, AudioTrack);
 
       this.flv = flv;
-      this.audioBuffers = new Uint8Array(0);
+      this.audioBuffers = [];
       this.audioInfo = null;
       this.aac = new AAC(flv, this);
       this.mp3 = new MP3(flv, this);
@@ -1609,8 +1607,8 @@
               frame = _this$formatName$muxe.frame,
               info = _this$formatName$muxe.info;
 
-          this.flv.emit('addAudioFrame', frame);
-          this.audioBuffers = mergeBuffer(this.audioBuffers, frame);
+          this.audioBuffers.push(frame);
+          this.flv.emit('audioFrame', frame);
 
           if (!this.audioInfo) {
             this.audioInfo = info;
@@ -1631,7 +1629,7 @@
           debug.warn('Audio data does not seem to be loaded completely');
         }
 
-        var url = URL.createObjectURL(new Blob([this.audioBuffers], {
+        var url = URL.createObjectURL(new Blob([mergeBuffer.apply(void 0, toConsumableArray(this.audioBuffers))], {
           type: "audio/".concat(this.audioInfo.format)
         }));
 
@@ -1653,11 +1651,10 @@
   var H264 =
   /*#__PURE__*/
   function () {
-    function H264(flv, videoTrack) {
+    function H264(flv) {
       classCallCheck(this, H264);
 
       this.flv = flv;
-      this.videoTrack = videoTrack;
     }
 
     createClass(H264, [{
@@ -1687,10 +1684,10 @@
     return VideoTrack;
   }();
 
-  var Transmuxer = function Transmuxer(flv) {
+  var Demuxer = function Demuxer(flv) {
     var _this = this;
 
-    classCallCheck(this, Transmuxer);
+    classCallCheck(this, Demuxer);
 
     this.audioTrack = new AudioTrack(flv);
     this.videoTrack = new VideoTrack(flv);
@@ -1733,7 +1730,7 @@
       _this.events = new Events(assertThisInitialized(assertThisInitialized(_this)));
       _this.workers = new Workers(assertThisInitialized(assertThisInitialized(_this)));
       _this.parse = new Parse(assertThisInitialized(assertThisInitialized(_this)));
-      _this.transmuxer = new Transmuxer(assertThisInitialized(assertThisInitialized(_this)));
+      _this.demuxer = new Demuxer(assertThisInitialized(assertThisInitialized(_this)));
       _this.mse = new MSE(assertThisInitialized(assertThisInitialized(_this)));
       _this.stream = new Stream(assertThisInitialized(assertThisInitialized(_this)));
       id += 1;
