@@ -43,6 +43,6 @@
     });
 
     $audioBtn.addEventListener('click', function () {  
-        FlvReader.instances[0].transmuxer.audioTrack.download();
+        FlvReader.instances[0].demuxer.audioTrack.download();
     });
 })();

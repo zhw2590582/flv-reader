@@ -12,21 +12,45 @@ export default class AAC {
     }
 
     static get AAC_SAMPLE_RATES() {
-        return [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
+        return {
+            0: 96000,
+            1: 88200,
+            2: 64000,
+            3: 48000,
+            4: 44100,
+            5: 32000,
+            6: 24000,
+            7: 22050,
+            8: 16000,
+            9: 12000,
+            10: 11025,
+            11: 8000,
+            12: 7350,
+            13: 0,
+            14: 0,
+            15: 0,
+        };
     }
 
     static get AAC_CHANNELS() {
-        return [0, 1, 2, 3, 4, 5, 6, 8];
+        return {
+            0: 0,
+            1: 1,
+            2: 2,
+            3: 3,
+            4: 4,
+            5: 5,
+            6: 6,
+            7: 8,
+        };
     }
 
     static getAudioSpecificConfig(packetData) {
         errorHandle(packetData.length >= 2, 'AudioSpecificConfig parss length is not enough');
         const AudioSpecificConfig = {};
         AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
-        const rateIndex = ((packetData[0] & 7) << 1) + (((packetData[1] & 0x80) >> 7) & 1);
-        AudioSpecificConfig.samplingFrequencyIndex = AAC.AAC_SAMPLE_RATES[rateIndex] || null;
-        const channelsIndex = (packetData[1] & 0x7f) >> 3;
-        AudioSpecificConfig.channelConfiguration = AAC.AAC_CHANNELS[channelsIndex] || null;
+        AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + (((packetData[1] & 0x80) >> 7) & 1);
+        AudioSpecificConfig.channelConfiguration = (packetData[1] & 0x7f) >> 3;
         return AudioSpecificConfig;
     }
 
@@ -35,7 +59,6 @@ export default class AAC {
         const packet = tag.body.slice(1);
         const packetType = packet[0];
         let frame = new Uint8Array(0);
-        let info = {};
 
         if (packetType === 0) {
             const packetData = packet.slice(1);
@@ -49,14 +72,14 @@ export default class AAC {
             frame = mergeBuffer(ADTSHeader, ADTSBody);
         }
 
-        info = {
-            format: 'aac',
-            codec: `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`,
-        };
-
         return {
             frame,
-            info,
+            info: {
+                format: 'aac',
+                sampleRate: AAC.AAC_SAMPLE_RATES[this.AudioSpecificConfig.samplingFrequencyIndex],
+                channels: AAC.AAC_CHANNELS[this.AudioSpecificConfig.channelConfiguration],
+                codec: `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`,
+            },
         };
     }
 

@@ -1473,7 +1473,6 @@
         var packet = tag.body.slice(1);
         var packetType = packet[0];
         var frame = new Uint8Array(0);
-        var info = {};
 
         if (packetType === 0) {
           var packetData = packet.slice(1);
@@ -1487,13 +1486,14 @@
           frame = mergeBuffer(ADTSHeader, ADTSBody);
         }
 
-        info = {
-          format: 'aac',
-          codec: "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType)
-        };
         return {
           frame: frame,
-          info: info
+          info: {
+            format: 'aac',
+            sampleRate: AAC.AAC_SAMPLE_RATES[this.AudioSpecificConfig.samplingFrequencyIndex],
+            channels: AAC.AAC_CHANNELS[this.AudioSpecificConfig.channelConfiguration],
+            codec: "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType)
+          }
         };
       }
     }, {
@@ -1531,21 +1531,45 @@
         errorHandle(packetData.length >= 2, 'AudioSpecificConfig parss length is not enough');
         var AudioSpecificConfig = {};
         AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
-        var rateIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
-        AudioSpecificConfig.samplingFrequencyIndex = AAC.AAC_SAMPLE_RATES[rateIndex] || null;
-        var channelsIndex = (packetData[1] & 0x7f) >> 3;
-        AudioSpecificConfig.channelConfiguration = AAC.AAC_CHANNELS[channelsIndex] || null;
+        AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
+        AudioSpecificConfig.channelConfiguration = (packetData[1] & 0x7f) >> 3;
         return AudioSpecificConfig;
       }
     }, {
       key: "AAC_SAMPLE_RATES",
       get: function get() {
-        return [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
+        return {
+          0: 96000,
+          1: 88200,
+          2: 64000,
+          3: 48000,
+          4: 44100,
+          5: 32000,
+          6: 24000,
+          7: 22050,
+          8: 16000,
+          9: 12000,
+          10: 11025,
+          11: 8000,
+          12: 7350,
+          13: 0,
+          14: 0,
+          15: 0
+        };
       }
     }, {
       key: "AAC_CHANNELS",
       get: function get() {
-        return [0, 1, 2, 3, 4, 5, 6, 8];
+        return {
+          0: 0,
+          1: 1,
+          2: 2,
+          3: 3,
+          4: 4,
+          5: 5,
+          6: 6,
+          7: 8
+        };
       }
     }]);
 
@@ -1564,14 +1588,82 @@
     createClass(MP3, [{
       key: "muxer",
       value: function muxer(tag) {
-        var frame = tag.body.slice(1);
-        var info = {
-          format: 'mp3',
-          codec: 'mp3'
-        };
+        var debug = this.flv.debug;
+        var packet = tag.body.slice(1);
+        errorHandle(packet.length >= 4, 'MP3 header missing');
+        errorHandle(packet[0] === 0xff, 'MP3 header mismatch');
+        var ver = packet[1] >>> 3 & 0x03;
+        var layer = (packet[1] & 0x06) >> 1;
+        var bitrateIndex = (packet[2] & 0xf0) >>> 4;
+        var samplingFreqIndex = (packet[2] & 0x0c) >>> 2;
+        var channelMode = packet[3] >>> 6 & 0x03;
+        var channels = channelMode !== 3 ? 2 : 1;
+        var sampleRate = 0;
+        var bitRate = 0;
+
+        switch (ver) {
+          case 0:
+            sampleRate = MP3.SAMPLERATES['25'][samplingFreqIndex];
+            break;
+
+          case 2:
+            sampleRate = MP3.SAMPLERATES['20'][samplingFreqIndex];
+            break;
+
+          case 3:
+            sampleRate = MP3.SAMPLERATES['10'][samplingFreqIndex];
+            break;
+
+          default:
+            debug.warn("Unknown mp3 version: ".concat(ver));
+            break;
+        }
+
+        switch (layer) {
+          case 1:
+            bitRate = MP3.BITRATES.L3[bitrateIndex];
+            break;
+
+          case 2:
+            bitRate = MP3.BITRATES.L2[bitrateIndex];
+            break;
+
+          case 3:
+            bitRate = MP3.BITRATES.L1[bitrateIndex];
+            break;
+
+          default:
+            debug.warn("Unknown mp3 layer: ".concat(layer));
+            break;
+        }
+
         return {
-          frame: frame,
-          info: info
+          frame: packet,
+          info: {
+            bitRate: bitRate,
+            sampleRate: sampleRate,
+            channels: channels,
+            format: 'mp3',
+            codec: 'mp3'
+          }
+        };
+      }
+    }], [{
+      key: "SAMPLERATES",
+      get: function get() {
+        return {
+          25: [11025, 12000, 8000, 0],
+          20: [22050, 24000, 16000, 0],
+          10: [44100, 48000, 32000, 0]
+        };
+      }
+    }, {
+      key: "BITRATES",
+      get: function get() {
+        return {
+          L1: [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, -1],
+          L2: [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, -1],
+          L3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, -1]
         };
       }
     }]);

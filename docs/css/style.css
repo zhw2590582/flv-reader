@@ -41,7 +41,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 50px 20px;
+    padding: 40px 20px;
     border-bottom: 1px solid #ddd;
     box-sizing: border-box;
 }

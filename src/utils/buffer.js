@@ -49,3 +49,16 @@ export function string2Buffer(string) {
 export function readBufferSum(array) {
     return array.reduce((totle, num, index) => totle + num * 256 ** (array.length - index - 1), 0);
 }
+
+export function hexToBuffer(hexString) {
+    const result = new Uint8Array(hexString.length / 2);
+    const bytes = hexString.split('');
+    for (let i = 0, j = 0, iz = bytes.length; i < iz; i += 2, j += 1) {
+        result[j] = parseInt(bytes[i] + bytes[i + 1], 16);
+    }
+    return result;
+}
+
+export function decimalToBinary(decimalArr) {
+    return Array.from(decimalArr).map(item => (Array(8).join(0) + item.toString(2)).toUpperCase().slice(-8));
+}
