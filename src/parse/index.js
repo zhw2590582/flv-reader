@@ -16,6 +16,10 @@ export default class Parse {
         this.header = null;
         this.tags = [];
 
+        this.scripTagMeta = null;
+        this.videoTagMeta = null;
+        this.audioTagMeta = null;
+
         flv.on('streamStart', () => {
             debug.log('stream-start', url);
         });
@@ -81,16 +85,27 @@ export default class Parse {
             switch (tag.tagType) {
                 case 18:
                     tag.meta = scripTag(tag.body);
-                    this.flv.emit('scripTagMeta', tag.meta);
-                    debug.log('scrip-tag-meta', tag.meta);
+                    if (!this.scripTagMeta) {
+                        this.scripTagMeta = tag.meta;
+                        this.flv.emit('scripTagMeta', tag.meta);
+                        debug.log('scrip-tag-meta', tag.meta);
+                    }
                     break;
                 case 9:
                     tag.meta = videoTag(tag.body);
-                    this.flv.emit('videoTagMeta', tag.meta);
+                    if (!this.videoTagMeta) {
+                        this.videoTagMeta = tag.meta;
+                        this.flv.emit('videoTagMeta', tag.meta);
+                        debug.log('video-tag-meta', tag.meta);
+                    }
                     break;
                 case 8:
                     tag.meta = audioTag(tag.body);
-                    this.flv.emit('audioTagMeta', tag.meta);
+                    if (!this.audioTagMeta) {
+                        this.audioTagMeta = tag.meta;
+                        this.flv.emit('audioTagMeta', tag.meta);
+                        debug.log('video-tag-meta', tag.meta);
+                    }
                     break;
                 default:
                     debug.warn('unknown-tag-type', tag.tagType);
