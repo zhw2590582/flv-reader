@@ -336,7 +336,7 @@
     errorHandle(flv.constructor.instances.every(function (item) {
       return item.options.mediaElement !== mediaElement;
     }), 'Cannot mount multiple instances on the same media element, please destroy the instance first');
-    errorHandle(typeof url === 'string' || url instanceof File && url.type === 'video/x-flv', "The 'url' option is not a string type or flv file");
+    errorHandle(typeof url === 'string' || url instanceof File, "The 'url' option is not a string or file");
   }
 
   var Debug = function Debug(flv) {

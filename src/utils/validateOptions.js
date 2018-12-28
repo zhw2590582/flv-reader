@@ -10,7 +10,7 @@ export default function validateOptions(flv) {
     );
 
     errorHandle(
-        typeof url === 'string' || (url instanceof File && url.type === 'video/x-flv'),
-        "The 'url' option is not a string type or flv file",
+        typeof url === 'string' || url instanceof File,
+        "The 'url' option is not a string or file",
     );
 }
