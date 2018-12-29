@@ -1780,6 +1780,8 @@
 
             if (frame) {
               _this.videoFrames.push(frame);
+
+              flv.emit('videoFrame', frame);
             }
 
             if (!_this.videoHeader && header) {
@@ -1799,6 +1801,8 @@
 
             if (_frame) {
               _this.audioFrames.push(_frame);
+
+              flv.emit('audioFrame', _frame);
             }
 
             if (!_this.audioHeader && _header) {

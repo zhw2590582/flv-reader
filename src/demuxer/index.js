@@ -22,6 +22,7 @@ export default class Demuxer {
                     const { frame, header } = new VideoTag(flv, tag, !this.videoHeader);
                     if (frame) {
                         this.videoFrames.push(frame);
+                        flv.emit('videoFrame', frame);
                     }
                     if (!this.videoHeader && header) {
                         this.videoHeader = header;
@@ -34,6 +35,7 @@ export default class Demuxer {
                     const { frame, header } = new AudioTag(flv, tag, !this.audioHeader);
                     if (frame) {
                         this.audioFrames.push(frame);
+                        flv.emit('audioFrame', frame);
                     }
                     if (!this.audioHeader && header) {
                         this.audioHeader = header;
