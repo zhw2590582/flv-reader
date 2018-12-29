@@ -1,5 +1,3 @@
-import { errorHandle } from '../utils';
-
 export default class MP3 {
     constructor(flv) {
         this.flv = flv;
@@ -27,8 +25,8 @@ export default class MP3 {
         let header = {};
 
         if (requestHeader) {
-            errorHandle(packet.length >= 4, 'MP3 header missing');
-            errorHandle(packet[0] === 0xff, 'MP3 header mismatch');
+            debug.error(packet.length >= 4, 'MP3 header missing');
+            debug.error(packet[0] === 0xff, 'MP3 header mismatch');
             const ver = (packet[1] >>> 3) & 0x03;
             const layer = (packet[1] & 0x06) >> 1;
             const bitrateIndex = (packet[2] & 0xf0) >>> 4;
@@ -49,7 +47,7 @@ export default class MP3 {
                     sampleRate = MP3.SAMPLERATES['10'][samplingFreqIndex];
                     break;
                 default:
-                    debug.warn(`Unknown mp3 version: ${ver}`);
+                    debug.warn(false, `Unknown mp3 version: ${ver}`);
                     break;
             }
 
@@ -64,7 +62,7 @@ export default class MP3 {
                     bitRate = MP3.BITRATES.L1[bitrateIndex];
                     break;
                 default:
-                    debug.warn(`Unknown mp3 layer: ${layer}`);
+                    debug.warn(false, `Unknown mp3 layer: ${layer}`);
                     break;
             }
 

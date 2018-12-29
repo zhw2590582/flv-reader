@@ -1,4 +1,3 @@
-import { errorHandle } from '../utils';
 import { mergeBuffer } from '../utils/buffer';
 
 export default class AAC {
@@ -45,15 +44,6 @@ export default class AAC {
         };
     }
 
-    static getAudioSpecificConfig(packetData) {
-        errorHandle(packetData.length >= 2, 'AudioSpecificConfig parss length is not enough');
-        const AudioSpecificConfig = {};
-        AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
-        AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + (((packetData[1] & 0x80) >> 7) & 1);
-        AudioSpecificConfig.channelConfiguration = (packetData[1] & 0x7f) >> 3;
-        return AudioSpecificConfig;
-    }
-
     demuxer(tag, requestHeader) {
         const { debug } = this.flv;
         const packet = tag.body.slice(1);
@@ -63,7 +53,7 @@ export default class AAC {
 
         if (packetType === 0) {
             const packetData = packet.slice(1);
-            this.AudioSpecificConfig = AAC.getAudioSpecificConfig(packetData);
+            this.AudioSpecificConfig = this.getAudioSpecificConfig(packetData);
             this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
             debug.log('audio-specific-config', this.AudioSpecificConfig);
         } else {
@@ -79,13 +69,23 @@ export default class AAC {
                 sampleRate: AAC.SAMPLERATES[this.AudioSpecificConfig.samplingFrequencyIndex],
                 channels: AAC.CHANNELS[this.AudioSpecificConfig.channelConfiguration],
                 codec: `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`,
-            }
+            };
         }
 
         return {
             frame,
             header,
         };
+    }
+
+    getAudioSpecificConfig(packetData) {
+        const { debug } = this.flv;
+        debug.error(packetData.length >= 2, 'AudioSpecificConfig parss length is not enough');
+        const AudioSpecificConfig = {};
+        AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
+        AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + (((packetData[1] & 0x80) >> 7) & 1);
+        AudioSpecificConfig.channelConfiguration = (packetData[1] & 0x7f) >> 3;
+        return AudioSpecificConfig;
     }
 
     getADTSHeader(ADTSLen) {

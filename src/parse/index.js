@@ -1,8 +1,7 @@
-import { errorHandle } from '../utils';
 import { mergeBuffer, readBufferSum, readString } from '../utils/buffer';
-import scripTag from './scripTag';
-import videoTag from './videoTag';
-import audioTag from './audioTag';
+import ScripTag from './scripTag';
+import VideoTag from './videoTag';
+import AudioTag from './audioTag';
 
 export default class Parse {
     constructor(flv) {
@@ -12,7 +11,6 @@ export default class Parse {
         this.index = 0;
         this.header = null;
         this.tags = [];
-
         this.scripTagMeta = null;
         this.videoTagMeta = null;
         this.audioTagMeta = null;
@@ -32,7 +30,6 @@ export default class Parse {
                 this.uint8 = uint8;
                 this.index = 0;
                 this.header = null;
-                this.scripTag = null;
                 this.tags = [];
                 this.scripTagMeta = null;
                 this.videoTagMeta = null;
@@ -52,11 +49,12 @@ export default class Parse {
             const header = Object.create(null);
             header.signature = readString(this.read(3));
             [header.version] = this.read(1);
-            errorHandle(header.signature === 'FLV' && header.version === 1, 'FLV header not found');
+            debug.error(header.signature === 'FLV' && header.version === 1, 'FLV header not found');
             [header.flags] = this.read(1);
             header.headersize = readBufferSum(this.read(4));
             this.header = header;
-            this.read(4);
+            const prevTagSize = readBufferSum(this.read(4));
+            debug.error(prevTagSize === 0, `PrevTagSize0 should be equal to 0, but got ${prevTagSize}`);
             this.flv.emit('parseHeader', this.header);
             debug.log('parse-header', this.header);
         }
@@ -68,15 +66,18 @@ export default class Parse {
             if (this.readable(11)) {
                 [tag.tagType] = this.read(1);
                 tag.dataSize = readBufferSum(this.read(3));
-                tag.timestamp = this.read(4);
-                tag.streamID = this.read(3);
+                tag.timestamp = readBufferSum(this.read(4));
+                tag.streamID = readBufferSum(this.read(3));
+                debug.error(tag.streamID === 0, `streamID should be equal to 0, but got ${tag.streamID}`);
             } else {
                 this.index = restIndex;
                 break;
             }
 
-            if (this.readable(tag.dataSize)) {
+            if (this.readable(tag.dataSize + 4)) {
                 tag.body = this.read(tag.dataSize);
+                const prevTagSize = readBufferSum(this.read(4));
+                debug.error(prevTagSize === tag.dataSize + 11, `Invalid PrevTagSize: ${prevTagSize}`);
             } else {
                 this.index = restIndex;
                 break;
@@ -84,7 +85,7 @@ export default class Parse {
 
             switch (tag.tagType) {
                 case 18:
-                    tag.meta = scripTag(tag.body);
+                    tag.meta = new ScripTag(this.flv, tag.body);
                     if (!this.scripTagMeta) {
                         this.scripTagMeta = tag.meta;
                         this.flv.emit('scripTagMeta', tag.meta);
@@ -92,7 +93,7 @@ export default class Parse {
                     }
                     break;
                 case 9:
-                    tag.meta = videoTag(tag.body);
+                    tag.meta = new VideoTag(this.flv, tag.body);
                     if (!this.videoTagMeta) {
                         this.videoTagMeta = tag.meta;
                         this.flv.emit('videoTagMeta', tag.meta);
@@ -100,7 +101,7 @@ export default class Parse {
                     }
                     break;
                 case 8:
-                    tag.meta = audioTag(tag.body);
+                    tag.meta = new AudioTag(this.flv, tag.body);
                     if (!this.audioTagMeta) {
                         this.audioTagMeta = tag.meta;
                         this.flv.emit('audioTagMeta', tag.meta);
@@ -108,11 +109,10 @@ export default class Parse {
                     }
                     break;
                 default:
-                    debug.warn('unknown-tag-type', tag.tagType);
+                    debug.warn(false, `unknown tag type: ${tag.tagType}`);
                     break;
             }
 
-            this.read(4);
             this.tags.push(tag);
             this.flv.emit('parseTag', tag);
         }
