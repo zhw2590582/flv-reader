@@ -1113,11 +1113,498 @@
     }, 0);
   }
 
-  var ScripTag = function ScripTag(flv, scripTagBody) {
+  var Parse =
+  /*#__PURE__*/
+  function () {
+    function Parse(flv) {
+      var _this = this;
+
+      classCallCheck(this, Parse);
+
+      this.flv = flv;
+      var options = flv.options,
+          debug = flv.debug;
+      this.uint8 = new Uint8Array(0);
+      this.index = 0;
+      this.header = null;
+      this.tags = [];
+      flv.on('streamStart', function () {
+        debug.log('stream-start', options.url);
+      });
+      flv.on('streaming', function (uint8) {
+        _this.uint8 = mergeBuffer(_this.uint8, uint8);
+
+        _this.parse();
+      });
+      flv.on('streamEnd', function (uint8) {
+        debug.log('stream-end');
+
+        if (uint8) {
+          _this.uint8 = uint8;
+          _this.index = 0;
+          _this.header = null;
+          _this.tags = [];
+
+          _this.parse();
+        }
+
+        _this.flv.loaded = true;
+        flv.emit('parseDone');
+        debug.log('parse-done');
+      });
+    }
+
+    createClass(Parse, [{
+      key: "parse",
+      value: function parse() {
+        var debug = this.flv.debug;
+
+        if (!this.header && this.readable(13)) {
+          var header = Object.create(null);
+          header.signature = readString(this.read(3));
+
+          var _this$read = this.read(1);
+
+          var _this$read2 = slicedToArray(_this$read, 1);
+
+          header.version = _this$read2[0];
+          debug.error(header.signature === 'FLV' && header.version === 1, 'FLV header not found');
+
+          var _this$read3 = this.read(1);
+
+          var _this$read4 = slicedToArray(_this$read3, 1);
+
+          header.flags = _this$read4[0];
+          header.headersize = readBufferSum(this.read(4));
+          this.header = header;
+          var prevTagSize = readBufferSum(this.read(4));
+          debug.error(prevTagSize === 0, "PrevTagSize0 should be equal to 0, but got ".concat(prevTagSize));
+          this.flv.emit('parseHeader', this.header);
+          debug.log('parse-header', this.header);
+        }
+
+        while (this.index < this.uint8.length) {
+          var restIndex = this.index;
+          var tag = Object.create(null);
+
+          if (this.readable(11)) {
+            var _this$read5 = this.read(1);
+
+            var _this$read6 = slicedToArray(_this$read5, 1);
+
+            tag.tagType = _this$read6[0];
+            tag.dataSize = readBufferSum(this.read(3));
+            tag.timestamp = readBufferSum(this.read(4));
+            tag.streamID = readBufferSum(this.read(3));
+            debug.error(tag.streamID === 0, "streamID should be equal to 0, but got ".concat(tag.streamID));
+          } else {
+            this.index = restIndex;
+            break;
+          }
+
+          if (this.readable(tag.dataSize + 4)) {
+            tag.body = this.read(tag.dataSize);
+
+            var _prevTagSize = readBufferSum(this.read(4));
+
+            debug.error(_prevTagSize === tag.dataSize + 11, "Invalid PrevTagSize: ".concat(_prevTagSize));
+          } else {
+            this.index = restIndex;
+            break;
+          }
+
+          this.tags.push(tag);
+          this.flv.emit('parseTag', tag);
+        }
+      }
+    }, {
+      key: "readable",
+      value: function readable(length) {
+        return this.uint8.length - this.index >= length;
+      }
+    }, {
+      key: "read",
+      value: function read(length) {
+        var tempUint8 = new Uint8Array(length);
+
+        for (var i = 0; i < length; i += 1) {
+          tempUint8[i] = this.uint8[this.index];
+          this.index += 1;
+        }
+
+        return tempUint8;
+      }
+    }]);
+
+    return Parse;
+  }();
+
+  var AAC =
+  /*#__PURE__*/
+  function () {
+    function AAC(flv, tag, requestHeader) {
+      classCallCheck(this, AAC);
+
+      this.flv = flv;
+      var debug = this.flv.debug;
+      var packet = tag.body.slice(1);
+      var packetType = packet[0];
+      var frame = null;
+      var header = null;
+      this.AudioSpecificConfig = {
+        audioObjectType: 0,
+        samplingFrequencyIndex: 0,
+        channelConfiguration: 0
+      };
+
+      if (packetType === 0) {
+        var packetData = packet.slice(1);
+        this.AudioSpecificConfig = this.getAudioSpecificConfig(packetData);
+        this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
+        debug.log('audio-specific-config', this.AudioSpecificConfig);
+      } else {
+        var ADTSLen = tag.dataSize - 2 + 7;
+        var ADTSHeader = this.getADTSHeader(ADTSLen);
+        var ADTSBody = tag.body.slice(2);
+        frame = mergeBuffer(ADTSHeader, ADTSBody);
+      }
+
+      if (requestHeader) {
+        header = {
+          format: 'aac',
+          sampleRate: AAC.SAMPLERATES[this.AudioSpecificConfig.samplingFrequencyIndex],
+          channels: AAC.CHANNELS[this.AudioSpecificConfig.channelConfiguration],
+          codec: "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType)
+        };
+      }
+
+      this.frame = frame;
+      this.header = header;
+    }
+
+    createClass(AAC, [{
+      key: "getAudioSpecificConfig",
+      value: function getAudioSpecificConfig(packetData) {
+        var debug = this.flv.debug;
+        debug.error(packetData.length >= 2, '[aac] AudioSpecificConfig parse length is not enough');
+        var AudioSpecificConfig = {};
+        AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
+        AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
+        AudioSpecificConfig.channelConfiguration = (packetData[1] & 0x7f) >> 3;
+        return AudioSpecificConfig;
+      }
+    }, {
+      key: "getADTSHeader",
+      value: function getADTSHeader(ADTSLen) {
+        var _this$AudioSpecificCo = this.AudioSpecificConfig,
+            audioObjectType = _this$AudioSpecificCo.audioObjectType,
+            samplingFrequencyIndex = _this$AudioSpecificCo.samplingFrequencyIndex,
+            channelConfiguration = _this$AudioSpecificCo.channelConfiguration;
+        var ADTSHeader = new Uint8Array(7);
+        ADTSHeader[0] = 0xff;
+        ADTSHeader[1] = 0xf0;
+        ADTSHeader[1] |= 0 << 3;
+        ADTSHeader[1] |= 0 << 1;
+        ADTSHeader[1] |= 1;
+        ADTSHeader[2] = audioObjectType - 1 << 6;
+        ADTSHeader[2] |= (samplingFrequencyIndex & 0x0f) << 2;
+        ADTSHeader[2] |= 0 << 1;
+        ADTSHeader[2] |= (channelConfiguration & 0x04) >> 2;
+        ADTSHeader[3] = (channelConfiguration & 0x03) << 6;
+        ADTSHeader[3] |= 0 << 5;
+        ADTSHeader[3] |= 0 << 4;
+        ADTSHeader[3] |= 0 << 3;
+        ADTSHeader[3] |= 0 << 2;
+        ADTSHeader[3] |= (ADTSLen & 0x1800) >> 11;
+        ADTSHeader[4] = (ADTSLen & 0x7f8) >> 3;
+        ADTSHeader[5] = (ADTSLen & 0x7) << 5;
+        ADTSHeader[5] |= 0x1f;
+        ADTSHeader[6] = 0xfc;
+        return ADTSHeader;
+      }
+    }], [{
+      key: "SAMPLERATES",
+      get: function get() {
+        return {
+          0: 96000,
+          1: 88200,
+          2: 64000,
+          3: 48000,
+          4: 44100,
+          5: 32000,
+          6: 24000,
+          7: 22050,
+          8: 16000,
+          9: 12000,
+          10: 11025,
+          11: 8000,
+          12: 7350,
+          13: 0,
+          14: 0,
+          15: 0
+        };
+      }
+    }, {
+      key: "CHANNELS",
+      get: function get() {
+        return {
+          0: 0,
+          1: 1,
+          2: 2,
+          3: 3,
+          4: 4,
+          5: 5,
+          6: 6,
+          7: 8
+        };
+      }
+    }]);
+
+    return AAC;
+  }();
+
+  var MP3 =
+  /*#__PURE__*/
+  function () {
+    function MP3(flv, tag, requestHeader) {
+      classCallCheck(this, MP3);
+
+      this.flv = flv;
+      var debug = this.flv.debug;
+      var packet = tag.body.slice(1);
+      var header = null;
+
+      if (requestHeader) {
+        debug.error(packet.length >= 4, 'MP3 header missing');
+        debug.error(packet[0] === 0xff, 'MP3 header mismatch');
+        var ver = packet[1] >>> 3 & 0x03;
+        var layer = (packet[1] & 0x06) >> 1;
+        var bitrateIndex = (packet[2] & 0xf0) >>> 4;
+        var samplingFreqIndex = (packet[2] & 0x0c) >>> 2;
+        var channelMode = packet[3] >>> 6 & 0x03;
+        var channels = channelMode !== 3 ? 2 : 1;
+        var sampleRate = 0;
+        var bitRate = 0;
+
+        switch (ver) {
+          case 0:
+            sampleRate = MP3.SAMPLERATES['25'][samplingFreqIndex];
+            break;
+
+          case 2:
+            sampleRate = MP3.SAMPLERATES['20'][samplingFreqIndex];
+            break;
+
+          case 3:
+            sampleRate = MP3.SAMPLERATES['10'][samplingFreqIndex];
+            break;
+
+          default:
+            debug.warn(false, "[mp3] Unknown mp3 version: ".concat(ver));
+            break;
+        }
+
+        switch (layer) {
+          case 1:
+            bitRate = MP3.BITRATES.L3[bitrateIndex];
+            break;
+
+          case 2:
+            bitRate = MP3.BITRATES.L2[bitrateIndex];
+            break;
+
+          case 3:
+            bitRate = MP3.BITRATES.L1[bitrateIndex];
+            break;
+
+          default:
+            debug.warn(false, "[mp3] Unknown mp3 layer: ".concat(layer));
+            break;
+        }
+
+        header = {
+          ver: ver,
+          layer: layer,
+          bitRate: bitRate,
+          sampleRate: sampleRate,
+          channels: channels,
+          format: 'mp3',
+          codec: 'mp3'
+        };
+      }
+
+      this.frame = packet;
+      this.header = header;
+    }
+
+    createClass(MP3, null, [{
+      key: "SAMPLERATES",
+      get: function get() {
+        return {
+          25: [11025, 12000, 8000, 0],
+          20: [22050, 24000, 16000, 0],
+          10: [44100, 48000, 32000, 0]
+        };
+      }
+    }, {
+      key: "BITRATES",
+      get: function get() {
+        return {
+          L1: [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, -1],
+          L2: [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, -1],
+          L3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, -1]
+        };
+      }
+    }]);
+
+    return MP3;
+  }();
+
+  var AudioTag =
+  /*#__PURE__*/
+  function () {
+    function AudioTag(flv, tag, requestHeader) {
+      classCallCheck(this, AudioTag);
+
+      this.flv = flv;
+      var debug = flv.debug;
+
+      var _this$getAudioMeta = this.getAudioMeta(tag),
+          soundFormat = _this$getAudioMeta.soundFormat;
+
+      debug.error(soundFormat === 10 || soundFormat === 2, "[audioTrack] unsupported audio format: ".concat(soundFormat));
+      var Format = AudioTag.SOUND_FORMATS[soundFormat];
+
+      var _ref = new Format(flv, tag, requestHeader),
+          frame = _ref.frame,
+          header = _ref.header;
+
+      this.frame = frame;
+      this.header = header;
+    }
+
+    createClass(AudioTag, [{
+      key: "getAudioMeta",
+      value: function getAudioMeta(tag) {
+        var debug = this.flv.debug;
+        debug.error(tag.body.length > 1, 'Invalid audio packet');
+        var meta = tag.body[0];
+        return {
+          soundFormat: (meta & 0xf0) >> 4,
+          soundRate: (meta & 0x0c) >> 2,
+          soundSize: (meta & 0x02) >> 1,
+          soundType: (meta & 0x01) >> 0
+        };
+      }
+    }], [{
+      key: "SOUND_FORMATS",
+      get: function get() {
+        return {
+          10: AAC,
+          2: MP3
+        };
+      }
+    }]);
+
+    return AudioTag;
+  }();
+
+  var H264 =
+  /*#__PURE__*/
+  function () {
+    function H264(flv, tag, requestHeader) {
+      classCallCheck(this, H264);
+
+      this.flv = flv;
+      this.AVCDecoderConfigurationRecord = {
+        configurationVersion: 0
+      };
+      var debug = this.flv.debug;
+      var packet = tag.body.slice(1);
+      debug.error(packet.length >= 4, '[H264] Invalid AVC packet, missing AVCPacketType or/and CompositionTime');
+      var view = new DataView(packet.buffer);
+      var packetType = view.getUint8(0);
+      var cts = (view.getUint32(0) & 0x00ffffff) << 8 >> 8;
+      var packetData = packet.slice(4);
+
+      if (packetType === 0) {
+        this.AVCDecoderConfigurationRecord = this.getAVCDecoderConfigurationRecord(packetData);
+        this.flv.emit('AVCDecoderConfigurationRecord', this.AVCDecoderConfigurationRecord);
+        debug.log('avc-decoder-configuration-record', this.AVCDecoderConfigurationRecord);
+      } else if (packetType === 1) {
+        this.getAVCVideoData(packetData, cts);
+      } else {
+        debug.error(packetType === 2, "[H264] Invalid video packet type ".concat(packetType));
+      }
+    }
+
+    createClass(H264, [{
+      key: "getAVCDecoderConfigurationRecord",
+      value: function getAVCDecoderConfigurationRecord(packetData) {
+        var debug = this.flv.debug;
+        debug.error(packetData.length >= 7, '[H264] AVCDecoderConfigurationRecord parse length is not enough');
+        var AVCDecoderConfigurationRecord = {};
+
+        var _packetData = slicedToArray(packetData, 4);
+
+        AVCDecoderConfigurationRecord.configurationVersion = _packetData[0];
+        AVCDecoderConfigurationRecord.avcProfileIndication = _packetData[1];
+        AVCDecoderConfigurationRecord.profile_compatibility = _packetData[2];
+        AVCDecoderConfigurationRecord.AVCLevelIndication = _packetData[3];
+        return AVCDecoderConfigurationRecord;
+      }
+    }, {
+      key: "getAVCVideoData",
+      value: function getAVCVideoData(packet) {// TODO
+      }
+    }]);
+
+    return H264;
+  }();
+
+  var VideoTag =
+  /*#__PURE__*/
+  function () {
+    function VideoTag(flv, tag, requestHeader) {
+      classCallCheck(this, VideoTag);
+
+      this.flv = flv;
+      var debug = flv.debug;
+
+      var _this$getVideoMeta = this.getVideoMeta(tag),
+          codecID = _this$getVideoMeta.codecID;
+
+      debug.error(codecID === 7, "[videoTrack] Unsupported codec in video frame: ".concat(codecID));
+
+      var _ref = new H264(flv, tag, requestHeader),
+          frame = _ref.frame,
+          header = _ref.header;
+
+      this.frame = frame;
+      this.header = header;
+    }
+
+    createClass(VideoTag, [{
+      key: "getVideoMeta",
+      value: function getVideoMeta(tag) {
+        var debug = this.flv.debug;
+        debug.error(tag.body.length > 1, 'Invalid video packet');
+        var meta = tag.body[0];
+        return {
+          frameType: (meta & 0xf0) >> 4,
+          codecID: meta & 0x0f
+        };
+      }
+    }]);
+
+    return VideoTag;
+  }();
+
+  var ScripTag = function ScripTag(flv, tag) {
     classCallCheck(this, ScripTag);
 
     var debug = flv.debug;
-    var readScripTag = readBuffer(scripTagBody);
+    var readScripTag = readBuffer(tag.body);
     var amf1 = Object.create(null);
     var amf2 = Object.create(null);
 
@@ -1250,7 +1737,7 @@
       return value;
     }
 
-    while (readScripTag.index < scripTagBody.length) {
+    while (readScripTag.index < tag.body.length) {
       var nameLength = readBufferSum(readScripTag(2));
       var name = readString(readScripTag(nameLength));
       var type = readScripTag(1)[0];
@@ -1260,202 +1747,75 @@
       }
     }
 
-    debug.error(readScripTag.index === scripTagBody.length, 'AMF: Seems to be incompletely parsed');
+    debug.error(readScripTag.index === tag.body.length, 'AMF: Seems to be incompletely parsed');
     debug.error(amf2.size === Object.keys(amf2.metaData).length, 'AMF: [amf2] length does not match');
     this.amf1 = amf1;
     this.amf2 = amf2;
   };
 
-  var VideoTag = function VideoTag(flv, videoTagBody) {
-    classCallCheck(this, VideoTag);
+  var Demuxer = function Demuxer(flv) {
+    var _this = this;
 
-    flv.debug.error(videoTagBody.length > 1, 'Invalid video packet');
-    var meta = videoTagBody[0];
-    this.frameType = (meta & 0xf0) >> 4;
-    this.codecID = meta & 0x0f;
-  };
+    classCallCheck(this, Demuxer);
 
-  var AudioTag = function AudioTag(flv, audioTagBody) {
-    classCallCheck(this, AudioTag);
+    var debug = flv.debug;
+    this.scripMeta = null;
+    this.audioHeader = null;
+    this.videoHeader = null;
+    this.audioFrames = [];
+    this.videoFrames = [];
+    flv.on('parseTag', function (tag) {
+      switch (tag.tagType) {
+        case 18:
+          _this.scripMeta = new ScripTag(flv, tag);
+          flv.emit('scripMeta', _this.scripMeta);
+          debug.log('scrip-meta', _this.scripMeta);
+          break;
 
-    flv.debug.error(audioTagBody.length > 1, 'Invalid audio packet');
-    var meta = audioTagBody[0];
-    this.soundFormat = (meta & 0xf0) >> 4;
-    this.soundRate = (meta & 0x0c) >> 2;
-    this.soundSize = (meta & 0x02) >> 1;
-    this.soundType = (meta & 0x01) >> 0;
-  };
+        case 9:
+          {
+            var _ref = new VideoTag(flv, tag, !_this.videoHeader),
+                frame = _ref.frame,
+                header = _ref.header;
 
-  var Parse =
-  /*#__PURE__*/
-  function () {
-    function Parse(flv) {
-      var _this = this;
+            if (frame) {
+              _this.videoFrames.push(frame);
+            }
 
-      classCallCheck(this, Parse);
+            if (!_this.videoHeader && header) {
+              _this.videoHeader = header;
+              flv.emit('videoHeader', header);
+              debug.log('video-header', header);
+            }
 
-      this.flv = flv;
-      var options = flv.options,
-          debug = flv.debug;
-      this.uint8 = new Uint8Array(0);
-      this.index = 0;
-      this.header = null;
-      this.tags = [];
-      this.scripTagMeta = null;
-      this.videoTagMeta = null;
-      this.audioTagMeta = null;
-      flv.on('streamStart', function () {
-        debug.log('stream-start', options.url);
-      });
-      flv.on('streaming', function (uint8) {
-        _this.uint8 = mergeBuffer(_this.uint8, uint8);
-
-        _this.parse();
-      });
-      flv.on('streamEnd', function (uint8) {
-        debug.log('stream-end');
-
-        if (uint8) {
-          _this.uint8 = uint8;
-          _this.index = 0;
-          _this.header = null;
-          _this.tags = [];
-          _this.scripTagMeta = null;
-          _this.videoTagMeta = null;
-          _this.audioTagMeta = null;
-
-          _this.parse();
-        }
-
-        _this.flv.loaded = true;
-        flv.emit('parseDone');
-        debug.log('parse-done');
-      });
-    }
-
-    createClass(Parse, [{
-      key: "parse",
-      value: function parse() {
-        var debug = this.flv.debug;
-
-        if (!this.header && this.readable(13)) {
-          var header = Object.create(null);
-          header.signature = readString(this.read(3));
-
-          var _this$read = this.read(1);
-
-          var _this$read2 = slicedToArray(_this$read, 1);
-
-          header.version = _this$read2[0];
-          debug.error(header.signature === 'FLV' && header.version === 1, 'FLV header not found');
-
-          var _this$read3 = this.read(1);
-
-          var _this$read4 = slicedToArray(_this$read3, 1);
-
-          header.flags = _this$read4[0];
-          header.headersize = readBufferSum(this.read(4));
-          this.header = header;
-          var prevTagSize = readBufferSum(this.read(4));
-          debug.error(prevTagSize === 0, "PrevTagSize0 should be equal to 0, but got ".concat(prevTagSize));
-          this.flv.emit('parseHeader', this.header);
-          debug.log('parse-header', this.header);
-        }
-
-        while (this.index < this.uint8.length) {
-          var restIndex = this.index;
-          var tag = Object.create(null);
-
-          if (this.readable(11)) {
-            var _this$read5 = this.read(1);
-
-            var _this$read6 = slicedToArray(_this$read5, 1);
-
-            tag.tagType = _this$read6[0];
-            tag.dataSize = readBufferSum(this.read(3));
-            tag.timestamp = readBufferSum(this.read(4));
-            tag.streamID = readBufferSum(this.read(3));
-            debug.error(tag.streamID === 0, "streamID should be equal to 0, but got ".concat(tag.streamID));
-          } else {
-            this.index = restIndex;
             break;
           }
 
-          if (this.readable(tag.dataSize + 4)) {
-            tag.body = this.read(tag.dataSize);
+        case 8:
+          {
+            var _ref2 = new AudioTag(flv, tag, !_this.audioHeader),
+                _frame = _ref2.frame,
+                _header = _ref2.header;
 
-            var _prevTagSize = readBufferSum(this.read(4));
+            if (_frame) {
+              _this.audioFrames.push(_frame);
+            }
 
-            debug.error(_prevTagSize === tag.dataSize + 11, "Invalid PrevTagSize: ".concat(_prevTagSize));
-          } else {
-            this.index = restIndex;
+            if (!_this.audioHeader && _header) {
+              _this.audioHeader = _header;
+              flv.emit('audioHeader', _header);
+              debug.log('audio-header', _header);
+            }
+
             break;
           }
 
-          switch (tag.tagType) {
-            case 18:
-              tag.meta = new ScripTag(this.flv, tag.body);
-
-              if (!this.scripTagMeta) {
-                this.scripTagMeta = tag.meta;
-                this.flv.emit('scripTagMeta', tag.meta);
-                debug.log('scrip-tag-meta', tag.meta);
-              }
-
-              break;
-
-            case 9:
-              tag.meta = new VideoTag(this.flv, tag.body);
-
-              if (!this.videoTagMeta) {
-                this.videoTagMeta = tag.meta;
-                this.flv.emit('videoTagMeta', tag.meta);
-                debug.log('video-tag-meta', tag.meta);
-              }
-
-              break;
-
-            case 8:
-              tag.meta = new AudioTag(this.flv, tag.body);
-
-              if (!this.audioTagMeta) {
-                this.audioTagMeta = tag.meta;
-                this.flv.emit('audioTagMeta', tag.meta);
-                debug.log('audio-tag-meta', tag.meta);
-              }
-
-              break;
-
-            default:
-              debug.warn(false, "unknown tag type: ".concat(tag.tagType));
-              break;
-          }
-
-          this.tags.push(tag);
-          this.flv.emit('parseTag', tag);
-        }
+        default:
+          debug.error(false, "unknown tag type: ".concat(tag.tagType));
+          break;
       }
-    }, {
-      key: "readable",
-      value: function readable(length) {
-        return this.uint8.length - this.index >= length;
-      }
-    }, {
-      key: "read",
-      value: function read(length) {
-        var tempUint8 = new Uint8Array(length);
-
-        for (var i = 0; i < length; i += 1) {
-          tempUint8[i] = this.uint8[this.index];
-          this.index += 1;
-        }
-
-        return tempUint8;
-      }
-    }]);
-
-    return Parse;
-  }();
+    });
+  };
 
   function createAbortError() {
     try {
@@ -1487,408 +1847,6 @@
     sleep: sleep,
     download: download
   });
-
-  var AAC =
-  /*#__PURE__*/
-  function () {
-    function AAC(flv) {
-      classCallCheck(this, AAC);
-
-      this.flv = flv;
-      this.AudioSpecificConfig = {
-        audioObjectType: 0,
-        samplingFrequencyIndex: 0,
-        channelConfiguration: 0
-      };
-    }
-
-    createClass(AAC, [{
-      key: "demuxer",
-      value: function demuxer(tag, requestHeader) {
-        var debug = this.flv.debug;
-        var packet = tag.body.slice(1);
-        var packetType = packet[0];
-        var frame = new Uint8Array(0);
-        var header = {};
-
-        if (packetType === 0) {
-          var packetData = packet.slice(1);
-          this.AudioSpecificConfig = this.getAudioSpecificConfig(packetData);
-          this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
-          debug.log('audio-specific-config', this.AudioSpecificConfig);
-        } else {
-          var ADTSLen = tag.dataSize - 2 + 7;
-          var ADTSHeader = this.getADTSHeader(ADTSLen);
-          var ADTSBody = tag.body.slice(2);
-          frame = mergeBuffer(ADTSHeader, ADTSBody);
-        }
-
-        if (requestHeader) {
-          header = {
-            format: 'aac',
-            sampleRate: AAC.SAMPLERATES[this.AudioSpecificConfig.samplingFrequencyIndex],
-            channels: AAC.CHANNELS[this.AudioSpecificConfig.channelConfiguration],
-            codec: "mp4a.40.".concat(this.AudioSpecificConfig.audioObjectType)
-          };
-        }
-
-        return {
-          frame: frame,
-          header: header
-        };
-      }
-    }, {
-      key: "getAudioSpecificConfig",
-      value: function getAudioSpecificConfig(packetData) {
-        var debug = this.flv.debug;
-        debug.error(packetData.length >= 2, '[aac] AudioSpecificConfig parse length is not enough');
-        var AudioSpecificConfig = {};
-        AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
-        AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
-        AudioSpecificConfig.channelConfiguration = (packetData[1] & 0x7f) >> 3;
-        return AudioSpecificConfig;
-      }
-    }, {
-      key: "getADTSHeader",
-      value: function getADTSHeader(ADTSLen) {
-        var _this$AudioSpecificCo = this.AudioSpecificConfig,
-            audioObjectType = _this$AudioSpecificCo.audioObjectType,
-            samplingFrequencyIndex = _this$AudioSpecificCo.samplingFrequencyIndex,
-            channelConfiguration = _this$AudioSpecificCo.channelConfiguration;
-        var ADTSHeader = new Uint8Array(7);
-        ADTSHeader[0] = 0xff;
-        ADTSHeader[1] = 0xf0;
-        ADTSHeader[1] |= 0 << 3;
-        ADTSHeader[1] |= 0 << 1;
-        ADTSHeader[1] |= 1;
-        ADTSHeader[2] = audioObjectType - 1 << 6;
-        ADTSHeader[2] |= (samplingFrequencyIndex & 0x0f) << 2;
-        ADTSHeader[2] |= 0 << 1;
-        ADTSHeader[2] |= (channelConfiguration & 0x04) >> 2;
-        ADTSHeader[3] = (channelConfiguration & 0x03) << 6;
-        ADTSHeader[3] |= 0 << 5;
-        ADTSHeader[3] |= 0 << 4;
-        ADTSHeader[3] |= 0 << 3;
-        ADTSHeader[3] |= 0 << 2;
-        ADTSHeader[3] |= (ADTSLen & 0x1800) >> 11;
-        ADTSHeader[4] = (ADTSLen & 0x7f8) >> 3;
-        ADTSHeader[5] = (ADTSLen & 0x7) << 5;
-        ADTSHeader[5] |= 0x1f;
-        ADTSHeader[6] = 0xfc;
-        return ADTSHeader;
-      }
-    }], [{
-      key: "SAMPLERATES",
-      get: function get() {
-        return {
-          0: 96000,
-          1: 88200,
-          2: 64000,
-          3: 48000,
-          4: 44100,
-          5: 32000,
-          6: 24000,
-          7: 22050,
-          8: 16000,
-          9: 12000,
-          10: 11025,
-          11: 8000,
-          12: 7350,
-          13: 0,
-          14: 0,
-          15: 0
-        };
-      }
-    }, {
-      key: "CHANNELS",
-      get: function get() {
-        return {
-          0: 0,
-          1: 1,
-          2: 2,
-          3: 3,
-          4: 4,
-          5: 5,
-          6: 6,
-          7: 8
-        };
-      }
-    }]);
-
-    return AAC;
-  }();
-
-  var MP3 =
-  /*#__PURE__*/
-  function () {
-    function MP3(flv) {
-      classCallCheck(this, MP3);
-
-      this.flv = flv;
-    }
-
-    createClass(MP3, [{
-      key: "demuxer",
-      value: function demuxer(tag, requestHeader) {
-        var debug = this.flv.debug;
-        var packet = tag.body.slice(1);
-        var header = {};
-
-        if (requestHeader) {
-          debug.error(packet.length >= 4, 'MP3 header missing');
-          debug.error(packet[0] === 0xff, 'MP3 header mismatch');
-          var ver = packet[1] >>> 3 & 0x03;
-          var layer = (packet[1] & 0x06) >> 1;
-          var bitrateIndex = (packet[2] & 0xf0) >>> 4;
-          var samplingFreqIndex = (packet[2] & 0x0c) >>> 2;
-          var channelMode = packet[3] >>> 6 & 0x03;
-          var channels = channelMode !== 3 ? 2 : 1;
-          var sampleRate = 0;
-          var bitRate = 0;
-
-          switch (ver) {
-            case 0:
-              sampleRate = MP3.SAMPLERATES['25'][samplingFreqIndex];
-              break;
-
-            case 2:
-              sampleRate = MP3.SAMPLERATES['20'][samplingFreqIndex];
-              break;
-
-            case 3:
-              sampleRate = MP3.SAMPLERATES['10'][samplingFreqIndex];
-              break;
-
-            default:
-              debug.warn(false, "[mp3] Unknown mp3 version: ".concat(ver));
-              break;
-          }
-
-          switch (layer) {
-            case 1:
-              bitRate = MP3.BITRATES.L3[bitrateIndex];
-              break;
-
-            case 2:
-              bitRate = MP3.BITRATES.L2[bitrateIndex];
-              break;
-
-            case 3:
-              bitRate = MP3.BITRATES.L1[bitrateIndex];
-              break;
-
-            default:
-              debug.warn(false, "[mp3] Unknown mp3 layer: ".concat(layer));
-              break;
-          }
-
-          header = {
-            ver: ver,
-            layer: layer,
-            bitRate: bitRate,
-            sampleRate: sampleRate,
-            channels: channels,
-            format: 'mp3',
-            codec: 'mp3'
-          };
-        }
-
-        return {
-          frame: packet,
-          header: header
-        };
-      }
-    }], [{
-      key: "SAMPLERATES",
-      get: function get() {
-        return {
-          25: [11025, 12000, 8000, 0],
-          20: [22050, 24000, 16000, 0],
-          10: [44100, 48000, 32000, 0]
-        };
-      }
-    }, {
-      key: "BITRATES",
-      get: function get() {
-        return {
-          L1: [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, -1],
-          L2: [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, -1],
-          L3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, -1]
-        };
-      }
-    }]);
-
-    return MP3;
-  }();
-
-  var AudioTrack =
-  /*#__PURE__*/
-  function () {
-    function AudioTrack(flv) {
-      classCallCheck(this, AudioTrack);
-
-      this.flv = flv;
-      this.audioBuffers = [];
-      this.audioHeader = null;
-      this.aac = new AAC(flv, this);
-      this.mp3 = new MP3(flv, this);
-    }
-
-    createClass(AudioTrack, [{
-      key: "demuxer",
-      value: function demuxer(tag) {
-        var debug = this.flv.debug;
-        var soundFormat = tag.meta.soundFormat;
-        debug.error(soundFormat === 10 || soundFormat === 2, "[audioTrack] unsupported audio format: ".concat(soundFormat));
-        var formatName = AudioTrack.SOUND_FORMATS[soundFormat];
-
-        var _this$formatName$demu = this[formatName].demuxer(tag, !this.audioHeader),
-            frame = _this$formatName$demu.frame,
-            header = _this$formatName$demu.header;
-
-        this.audioBuffers.push(frame);
-        this.flv.emit('audioFrame', frame);
-
-        if (!this.audioHeader) {
-          this.audioHeader = header;
-          this.flv.emit('audioHeader', this.audioHeader);
-          debug.log('audio-header', this.audioHeader);
-        }
-      }
-    }, {
-      key: "download",
-      value: function download$$1() {
-        var _this$flv = this.flv,
-            loaded = _this$flv.loaded,
-            debug = _this$flv.debug;
-        debug.error(this.audioHeader && this.audioBuffers.length > 0, 'Audio data seems to be not ready');
-        debug.warn(loaded, 'Audio data does not seem to be loaded completely');
-        var url = URL.createObjectURL(new Blob([mergeBuffer.apply(void 0, toConsumableArray(this.audioBuffers))], {
-          type: "audio/".concat(this.audioHeader.format)
-        }));
-
-        download(url, "audioTrack.".concat(this.audioHeader.format));
-      }
-    }], [{
-      key: "SOUND_FORMATS",
-      get: function get() {
-        return {
-          10: 'aac',
-          2: 'mp3'
-        };
-      }
-    }]);
-
-    return AudioTrack;
-  }();
-
-  var H264 =
-  /*#__PURE__*/
-  function () {
-    function H264(flv) {
-      classCallCheck(this, H264);
-
-      this.flv = flv;
-      this.AVCDecoderConfigurationRecord = {
-        configurationVersion: 0
-      };
-    }
-
-    createClass(H264, [{
-      key: "demuxer",
-      value: function demuxer(tag) {
-        var debug = this.flv.debug;
-        var packet = tag.body.slice(1);
-        debug.error(packet.length >= 4, '[H264] Invalid AVC packet, missing AVCPacketType or/and CompositionTime');
-        var view = new DataView(packet.buffer);
-        var packetType = view.getUint8(0);
-        var cts = (view.getUint32(0) & 0x00ffffff) << 8 >> 8;
-        var packetData = packet.slice(4);
-
-        if (packetType === 0) {
-          this.AVCDecoderConfigurationRecord = this.getAVCDecoderConfigurationRecord(packetData);
-          this.flv.emit('AVCDecoderConfigurationRecord', this.AVCDecoderConfigurationRecord);
-          debug.log('avc-decoder-configuration-record', this.AVCDecoderConfigurationRecord);
-        } else if (packetType === 1) {
-          this.getAVCVideoData(packetData, cts);
-        } else {
-          debug.error(packetType === 2, "[H264] Invalid video packet type ".concat(packetType));
-        }
-      }
-    }, {
-      key: "getAVCDecoderConfigurationRecord",
-      value: function getAVCDecoderConfigurationRecord(packetData) {
-        var debug = this.flv.debug;
-        debug.error(packetData.length >= 7, '[H264] AVCDecoderConfigurationRecord parse length is not enough');
-        var AVCDecoderConfigurationRecord = {};
-
-        var _packetData = slicedToArray(packetData, 4);
-
-        AVCDecoderConfigurationRecord.configurationVersion = _packetData[0];
-        AVCDecoderConfigurationRecord.avcProfileIndication = _packetData[1];
-        AVCDecoderConfigurationRecord.profile_compatibility = _packetData[2];
-        AVCDecoderConfigurationRecord.AVCLevelIndication = _packetData[3];
-        console.log(AVCDecoderConfigurationRecord);
-        return AVCDecoderConfigurationRecord;
-      }
-    }, {
-      key: "getAVCVideoData",
-      value: function getAVCVideoData(packet) {// TODO
-      }
-    }]);
-
-    return H264;
-  }();
-
-  var VideoTrack =
-  /*#__PURE__*/
-  function () {
-    function VideoTrack(flv) {
-      classCallCheck(this, VideoTrack);
-
-      this.flv = flv;
-      this.videoBuffers = [];
-      this.videoHeader = null;
-      this.h264 = new H264(flv, this);
-    }
-
-    createClass(VideoTrack, [{
-      key: "demuxer",
-      value: function demuxer(tag) {
-        var debug = this.flv.debug;
-        var codecID = tag.meta.codecID;
-        debug.error(codecID === 7, "[videoTrack] Unsupported codec in video frame: ".concat(codecID));
-        this.h264.demuxer(tag);
-      }
-    }]);
-
-    return VideoTrack;
-  }();
-
-  var Demuxer = function Demuxer(flv) {
-    var _this = this;
-
-    classCallCheck(this, Demuxer);
-
-    this.audioTrack = new AudioTrack(flv);
-    this.videoTrack = new VideoTrack(flv);
-    flv.on('parseTag', function (tag) {
-      switch (tag.tagType) {
-        case 9:
-          _this.videoTrack.demuxer(tag);
-
-          break;
-
-        case 8:
-          _this.audioTrack.demuxer(tag);
-
-          break;
-
-        default:
-          break;
-      }
-    });
-  };
 
   var id = 0;
 

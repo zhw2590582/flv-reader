@@ -1,28 +1,9 @@
 export default class MP3 {
-    constructor(flv) {
+    constructor(flv, tag, requestHeader) {
         this.flv = flv;
-    }
-
-    static get SAMPLERATES() {
-        return {
-            25: [11025, 12000, 8000, 0],
-            20: [22050, 24000, 16000, 0],
-            10: [44100, 48000, 32000, 0],
-        };
-    }
-
-    static get BITRATES() {
-        return {
-            L1: [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, -1],
-            L2: [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, -1],
-            L3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, -1],
-        };
-    }
-
-    demuxer(tag, requestHeader) {
         const { debug } = this.flv;
         const packet = tag.body.slice(1);
-        let header = {};
+        let header = null;
 
         if (requestHeader) {
             debug.error(packet.length >= 4, 'MP3 header missing');
@@ -77,9 +58,23 @@ export default class MP3 {
             };
         }
 
+        this.frame = packet;
+        this.header = header;
+    }
+
+    static get SAMPLERATES() {
         return {
-            frame: packet,
-            header,
+            25: [11025, 12000, 8000, 0],
+            20: [22050, 24000, 16000, 0],
+            10: [44100, 48000, 32000, 0],
+        };
+    }
+
+    static get BITRATES() {
+        return {
+            L1: [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, -1],
+            L2: [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, -1],
+            L3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, -1],
         };
     }
 }

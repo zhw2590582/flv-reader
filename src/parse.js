@@ -8,9 +8,6 @@ export default class Parse {
         this.index = 0;
         this.header = null;
         this.tags = [];
-        this.scripTagMeta = null;
-        this.videoTagMeta = null;
-        this.audioTagMeta = null;
 
         flv.on('streamStart', () => {
             debug.log('stream-start', options.url);
@@ -28,9 +25,6 @@ export default class Parse {
                 this.index = 0;
                 this.header = null;
                 this.tags = [];
-                this.scripTagMeta = null;
-                this.videoTagMeta = null;
-                this.audioTagMeta = null;
                 this.parse();
             }
 

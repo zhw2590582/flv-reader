@@ -1,13 +1,43 @@
-import { mergeBuffer } from '../utils/buffer';
+import { mergeBuffer } from '../../utils/buffer';
 
 export default class AAC {
-    constructor(flv) {
+    constructor(flv, tag, requestHeader) {
         this.flv = flv;
+        const { debug } = this.flv;
+        const packet = tag.body.slice(1);
+        const packetType = packet[0];
+        let frame = null;
+        let header = null;
+        
         this.AudioSpecificConfig = {
             audioObjectType: 0,
             samplingFrequencyIndex: 0,
             channelConfiguration: 0,
         };
+
+        if (packetType === 0) {
+            const packetData = packet.slice(1);
+            this.AudioSpecificConfig = this.getAudioSpecificConfig(packetData);
+            this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
+            debug.log('audio-specific-config', this.AudioSpecificConfig);
+        } else {
+            const ADTSLen = tag.dataSize - 2 + 7;
+            const ADTSHeader = this.getADTSHeader(ADTSLen);
+            const ADTSBody = tag.body.slice(2);
+            frame = mergeBuffer(ADTSHeader, ADTSBody);
+        }
+
+        if (requestHeader) {
+            header = {
+                format: 'aac',
+                sampleRate: AAC.SAMPLERATES[this.AudioSpecificConfig.samplingFrequencyIndex],
+                channels: AAC.CHANNELS[this.AudioSpecificConfig.channelConfiguration],
+                codec: `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`,
+            };
+        }
+
+        this.frame = frame;
+        this.header = header;
     }
 
     static get SAMPLERATES() {
@@ -41,40 +71,6 @@ export default class AAC {
             5: 5,
             6: 6,
             7: 8,
-        };
-    }
-
-    demuxer(tag, requestHeader) {
-        const { debug } = this.flv;
-        const packet = tag.body.slice(1);
-        const packetType = packet[0];
-        let frame = new Uint8Array(0);
-        let header = {};
-
-        if (packetType === 0) {
-            const packetData = packet.slice(1);
-            this.AudioSpecificConfig = this.getAudioSpecificConfig(packetData);
-            this.flv.emit('AudioSpecificConfig', this.AudioSpecificConfig);
-            debug.log('audio-specific-config', this.AudioSpecificConfig);
-        } else {
-            const ADTSLen = tag.dataSize - 2 + 7;
-            const ADTSHeader = this.getADTSHeader(ADTSLen);
-            const ADTSBody = tag.body.slice(2);
-            frame = mergeBuffer(ADTSHeader, ADTSBody);
-        }
-
-        if (requestHeader) {
-            header = {
-                format: 'aac',
-                sampleRate: AAC.SAMPLERATES[this.AudioSpecificConfig.samplingFrequencyIndex],
-                channels: AAC.CHANNELS[this.AudioSpecificConfig.channelConfiguration],
-                codec: `mp4a.40.${this.AudioSpecificConfig.audioObjectType}`,
-            };
-        }
-
-        return {
-            frame,
-            header,
         };
     }
 

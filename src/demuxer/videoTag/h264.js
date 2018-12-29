@@ -1,12 +1,10 @@
 export default class H264 {
-    constructor(flv) {
+    constructor(flv, tag, requestHeader) {
         this.flv = flv;
         this.AVCDecoderConfigurationRecord = {
             configurationVersion: 0,
         };
-    }
 
-    demuxer(tag) {
         const { debug } = this.flv;
         const packet = tag.body.slice(1);
         debug.error(packet.length >= 4, '[H264] Invalid AVC packet, missing AVCPacketType or/and CompositionTime');
@@ -36,7 +34,6 @@ export default class H264 {
             AVCDecoderConfigurationRecord.profile_compatibility,
             AVCDecoderConfigurationRecord.AVCLevelIndication,
         ] = packetData;
-        console.log(AVCDecoderConfigurationRecord);
         return AVCDecoderConfigurationRecord;
     }
 
