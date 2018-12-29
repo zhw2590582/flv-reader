@@ -22,7 +22,7 @@ export default class AudioTrack {
     demuxer(tag) {
         const { debug } = this.flv;
         const { soundFormat } = tag.meta;
-        debug.warn(soundFormat === 10 || soundFormat === 2, `unsupported audio format: ${soundFormat}`);
+        debug.error(soundFormat === 10 || soundFormat === 2, `[audioTrack] unsupported audio format: ${soundFormat}`);
         const formatName = AudioTrack.SOUND_FORMATS[soundFormat];
         const { frame, header } = this[formatName].demuxer(tag, !this.audioHeader);
         this.audioBuffers.push(frame);

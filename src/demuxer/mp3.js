@@ -47,7 +47,7 @@ export default class MP3 {
                     sampleRate = MP3.SAMPLERATES['10'][samplingFreqIndex];
                     break;
                 default:
-                    debug.warn(false, `Unknown mp3 version: ${ver}`);
+                    debug.warn(false, `[mp3] Unknown mp3 version: ${ver}`);
                     break;
             }
 
@@ -62,7 +62,7 @@ export default class MP3 {
                     bitRate = MP3.BITRATES.L1[bitrateIndex];
                     break;
                 default:
-                    debug.warn(false, `Unknown mp3 layer: ${layer}`);
+                    debug.warn(false, `[mp3] Unknown mp3 layer: ${layer}`);
                     break;
             }
 

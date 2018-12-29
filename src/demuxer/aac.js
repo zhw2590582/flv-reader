@@ -80,7 +80,7 @@ export default class AAC {
 
     getAudioSpecificConfig(packetData) {
         const { debug } = this.flv;
-        debug.error(packetData.length >= 2, 'AudioSpecificConfig parss length is not enough');
+        debug.error(packetData.length >= 2, '[aac] AudioSpecificConfig parss length is not enough');
         const AudioSpecificConfig = {};
         AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
         AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + (((packetData[1] & 0x80) >> 7) & 1);

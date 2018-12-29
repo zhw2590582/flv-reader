@@ -1107,8 +1107,9 @@
     return (_String$fromCharCode = String.fromCharCode).call.apply(_String$fromCharCode, [String].concat(toConsumableArray(array)));
   }
   function readBufferSum(array) {
+    var uint = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
     return array.reduce(function (totle, num, index) {
-      return totle + num * Math.pow(256, array.length - index - 1);
+      return totle + (uint ? num : num - 128) * Math.pow(256, array.length - index - 1);
     }, 0);
   }
 
@@ -1268,6 +1269,7 @@
   var VideoTag = function VideoTag(flv, videoTagBody) {
     classCallCheck(this, VideoTag);
 
+    flv.debug.error(videoTagBody.length > 1, 'Invalid video packet');
     var meta = videoTagBody[0];
     this.frameType = (meta & 0xf0) >> 4;
     this.codecID = meta & 0x0f;
@@ -1276,6 +1278,7 @@
   var AudioTag = function AudioTag(flv, audioTagBody) {
     classCallCheck(this, AudioTag);
 
+    flv.debug.error(audioTagBody.length > 1, 'Invalid audio packet');
     var meta = audioTagBody[0];
     this.soundFormat = (meta & 0xf0) >> 4;
     this.soundRate = (meta & 0x0c) >> 2;
@@ -1538,7 +1541,7 @@
       key: "getAudioSpecificConfig",
       value: function getAudioSpecificConfig(packetData) {
         var debug = this.flv.debug;
-        debug.error(packetData.length >= 2, 'AudioSpecificConfig parss length is not enough');
+        debug.error(packetData.length >= 2, '[aac] AudioSpecificConfig parss length is not enough');
         var AudioSpecificConfig = {};
         AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
         AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
@@ -1657,7 +1660,7 @@
               break;
 
             default:
-              debug.warn(false, "Unknown mp3 version: ".concat(ver));
+              debug.warn(false, "[mp3] Unknown mp3 version: ".concat(ver));
               break;
           }
 
@@ -1675,7 +1678,7 @@
               break;
 
             default:
-              debug.warn(false, "Unknown mp3 layer: ".concat(layer));
+              debug.warn(false, "[mp3] Unknown mp3 layer: ".concat(layer));
               break;
           }
 
@@ -1736,7 +1739,7 @@
       value: function demuxer(tag) {
         var debug = this.flv.debug;
         var soundFormat = tag.meta.soundFormat;
-        debug.warn(soundFormat === 10 || soundFormat === 2, "unsupported audio format: ".concat(soundFormat));
+        debug.error(soundFormat === 10 || soundFormat === 2, "[audioTrack] unsupported audio format: ".concat(soundFormat));
         var formatName = AudioTrack.SOUND_FORMATS[soundFormat];
 
         var _this$formatName$demu = this[formatName].demuxer(tag, !this.audioHeader),
@@ -1786,11 +1789,49 @@
       classCallCheck(this, H264);
 
       this.flv = flv;
+      this.AVCDecoderConfigurationRecord = {
+        configurationVersion: 0
+      };
     }
 
     createClass(H264, [{
       key: "demuxer",
-      value: function demuxer(tag) {// console.log(tag);
+      value: function demuxer(tag) {
+        var debug = this.flv.debug;
+        var packet = tag.body.slice(1);
+        debug.error(packet.length >= 4, '[H264] Invalid AVC packet, missing AVCPacketType or/and CompositionTime');
+        var packetType = packet[0];
+        var cts = 0;
+        console.log(cts);
+        var packetData = packet.slice(4);
+
+        if (packetType === 0) {
+          this.AVCDecoderConfigurationRecord = this.getAVCDecoderConfigurationRecord(packetData);
+        } else if (packetType === 1) {
+          this.getAVCVideoData(packetData);
+        } else {
+          debug.error(packetType === 2, "[H264] Invalid video packet type ".concat(packetType));
+        }
+      }
+    }, {
+      key: "getAVCDecoderConfigurationRecord",
+      value: function getAVCDecoderConfigurationRecord(packetData) {
+        var debug = this.flv.debug;
+        debug.error(packetData.length >= 7, '[H264] AVCDecoderConfigurationRecord parss length is not enough');
+        var AVCDecoderConfigurationRecord = {};
+
+        var _packetData = slicedToArray(packetData, 4);
+
+        AVCDecoderConfigurationRecord.configurationVersion = _packetData[0];
+        AVCDecoderConfigurationRecord.avcProfileIndication = _packetData[1];
+        AVCDecoderConfigurationRecord.profile_compatibility = _packetData[2];
+        AVCDecoderConfigurationRecord.AVCLevelIndication = _packetData[3];
+        console.log(AVCDecoderConfigurationRecord);
+        return AVCDecoderConfigurationRecord;
+      }
+    }, {
+      key: "getAVCVideoData",
+      value: function getAVCVideoData(packet) {// TODO
       }
     }]);
 
@@ -1803,6 +1844,7 @@
     function VideoTrack(flv) {
       classCallCheck(this, VideoTrack);
 
+      this.flv = flv;
       this.videoBuffers = [];
       this.videoHeader = null;
       this.h264 = new H264(flv, this);
@@ -1811,6 +1853,9 @@
     createClass(VideoTrack, [{
       key: "demuxer",
       value: function demuxer(tag) {
+        var debug = this.flv.debug;
+        var codecID = tag.meta.codecID;
+        debug.error(codecID === 7, "[videoTrack] Unsupported codec in video frame: ".concat(codecID));
         this.h264.demuxer(tag);
       }
     }]);

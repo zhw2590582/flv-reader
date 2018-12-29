@@ -46,8 +46,8 @@ export function string2Buffer(string) {
     return result;
 }
 
-export function readBufferSum(array) {
-    return array.reduce((totle, num, index) => totle + num * 256 ** (array.length - index - 1), 0);
+export function readBufferSum(array, uint = true) {
+    return array.reduce((totle, num, index) => totle + (uint ? num : (num - 128)) * 256 ** (array.length - index - 1), 0);
 }
 
 export function hexToBuffer(hexString) {
@@ -61,4 +61,8 @@ export function hexToBuffer(hexString) {
 
 export function decimalToBinary(decimalArr) {
     return Array.from(decimalArr).map(item => (Array(8).join(0) + item.toString(2)).toUpperCase().slice(-8));
+}
+
+export function decimalToHex(decimalArr) {
+    return Array.from(decimalArr).map(item => (Array(2).join(0) + item.toString(16)).toUpperCase().slice(-2));
 }

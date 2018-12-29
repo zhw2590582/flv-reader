@@ -27,8 +27,15 @@
         </div>
         <div class="console"></div>
     </div>
-    <script src="./uncompiled/flv-reader.js"></script>
-    <script src="./js/consola.js"></script>
-    <script src="./js/common.js"></script>
+    <script src="./js/flv.js"></script>
+    <script>
+        var videoElement = document.getElementById('video');
+        var flvPlayer = flvjs.createPlayer({
+            type: 'flv',
+            url: './video/bunny_aac.flv'
+        });
+        flvPlayer.attachMediaElement(videoElement);
+        flvPlayer.load();
+    </script>
 </body>
 </html>
