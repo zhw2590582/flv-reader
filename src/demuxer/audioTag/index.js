@@ -1,13 +1,14 @@
-import { download } from '../utils';
-import { mergeBuffer } from '../utils/buffer';
+import { download } from '../../utils';
+import { mergeBuffer } from '../../utils/buffer';
 import AAC from './aac';
 import MP3 from './mp3';
 
-export default class AudioTrack {
+export default class AudioTag {
     constructor(flv) {
         this.flv = flv;
         this.audioBuffers = [];
         this.audioHeader = null;
+        this.audioMeta = null;
         this.aac = new AAC(flv, this);
         this.mp3 = new MP3(flv, this);
     }
@@ -23,7 +24,7 @@ export default class AudioTrack {
         const { debug } = this.flv;
         const { soundFormat } = tag.meta;
         debug.error(soundFormat === 10 || soundFormat === 2, `[audioTrack] unsupported audio format: ${soundFormat}`);
-        const formatName = AudioTrack.SOUND_FORMATS[soundFormat];
+        const formatName = AudioTag.SOUND_FORMATS[soundFormat];
         const { frame, header } = this[formatName].demuxer(tag, !this.audioHeader);
         this.audioBuffers.push(frame);
         this.flv.emit('audioFrame', frame);

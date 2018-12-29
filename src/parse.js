@@ -1,7 +1,4 @@
-import { mergeBuffer, readBufferSum, readString } from '../utils/buffer';
-import ScripTag from './scripTag';
-import VideoTag from './videoTag';
-import AudioTag from './audioTag';
+import { mergeBuffer, readBufferSum, readString } from './utils/buffer';
 
 export default class Parse {
     constructor(flv) {
@@ -81,36 +78,6 @@ export default class Parse {
             } else {
                 this.index = restIndex;
                 break;
-            }
-
-            switch (tag.tagType) {
-                case 18:
-                    tag.meta = new ScripTag(this.flv, tag.body);
-                    if (!this.scripTagMeta) {
-                        this.scripTagMeta = tag.meta;
-                        this.flv.emit('scripTagMeta', tag.meta);
-                        debug.log('scrip-tag-meta', tag.meta);
-                    }
-                    break;
-                case 9:
-                    tag.meta = new VideoTag(this.flv, tag.body);
-                    if (!this.videoTagMeta) {
-                        this.videoTagMeta = tag.meta;
-                        this.flv.emit('videoTagMeta', tag.meta);
-                        debug.log('video-tag-meta', tag.meta);
-                    }
-                    break;
-                case 8:
-                    tag.meta = new AudioTag(this.flv, tag.body);
-                    if (!this.audioTagMeta) {
-                        this.audioTagMeta = tag.meta;
-                        this.flv.emit('audioTagMeta', tag.meta);
-                        debug.log('audio-tag-meta', tag.meta);
-                    }
-                    break;
-                default:
-                    debug.warn(false, `unknown tag type: ${tag.tagType}`);
-                    break;
             }
 
             this.tags.push(tag);

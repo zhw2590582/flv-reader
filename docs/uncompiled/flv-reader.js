@@ -1541,7 +1541,7 @@
       key: "getAudioSpecificConfig",
       value: function getAudioSpecificConfig(packetData) {
         var debug = this.flv.debug;
-        debug.error(packetData.length >= 2, '[aac] AudioSpecificConfig parss length is not enough');
+        debug.error(packetData.length >= 2, '[aac] AudioSpecificConfig parse length is not enough');
         var AudioSpecificConfig = {};
         AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
         AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
@@ -1800,15 +1800,17 @@
         var debug = this.flv.debug;
         var packet = tag.body.slice(1);
         debug.error(packet.length >= 4, '[H264] Invalid AVC packet, missing AVCPacketType or/and CompositionTime');
-        var packetType = packet[0];
-        var cts = 0;
-        console.log(cts);
+        var view = new DataView(packet.buffer);
+        var packetType = view.getUint8(0);
+        var cts = (view.getUint32(0) & 0x00ffffff) << 8 >> 8;
         var packetData = packet.slice(4);
 
         if (packetType === 0) {
           this.AVCDecoderConfigurationRecord = this.getAVCDecoderConfigurationRecord(packetData);
+          this.flv.emit('AVCDecoderConfigurationRecord', this.AVCDecoderConfigurationRecord);
+          debug.log('avc-decoder-configuration-record', this.AVCDecoderConfigurationRecord);
         } else if (packetType === 1) {
-          this.getAVCVideoData(packetData);
+          this.getAVCVideoData(packetData, cts);
         } else {
           debug.error(packetType === 2, "[H264] Invalid video packet type ".concat(packetType));
         }
@@ -1817,7 +1819,7 @@
       key: "getAVCDecoderConfigurationRecord",
       value: function getAVCDecoderConfigurationRecord(packetData) {
         var debug = this.flv.debug;
-        debug.error(packetData.length >= 7, '[H264] AVCDecoderConfigurationRecord parss length is not enough');
+        debug.error(packetData.length >= 7, '[H264] AVCDecoderConfigurationRecord parse length is not enough');
         var AVCDecoderConfigurationRecord = {};
 
         var _packetData = slicedToArray(packetData, 4);
