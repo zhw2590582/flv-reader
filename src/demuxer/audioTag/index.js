@@ -2,21 +2,28 @@ import AAC from './aac';
 import MP3 from './mp3';
 
 export default class AudioTag {
-    constructor(flv, tag, requestHeader) {
+    constructor(flv) {
         this.flv = flv;
-        const { debug } = flv;
-        const { soundFormat } = this.getAudioMeta(tag);
-        debug.error(soundFormat === 10 || soundFormat === 2, `[audioTrack] unsupported audio format: ${soundFormat}`);
-        const Format = AudioTag.SOUND_FORMATS[soundFormat];
-        const { frame, header } = new Format(flv, tag, requestHeader);
-        this.frame = frame;
-        this.header = header;
+        this.aac = new AAC(flv);
+        this.mp3 = new MP3(flv);
     }
 
     static get SOUND_FORMATS() {
         return {
-            10: AAC,
-            2: MP3,
+            10: 'aac',
+            2: 'mp3',
+        };
+    }
+
+    demuxer(tag, requestHeader) {
+        const { debug } = this.flv;
+        const { soundFormat } = this.getAudioMeta(tag);
+        debug.error(soundFormat === 10 || soundFormat === 2, `[audioTrack] unsupported audio format: ${soundFormat}`);
+        const format = AudioTag.SOUND_FORMATS[soundFormat];
+        const { frame, header } = this[format].demuxer(tag, requestHeader);
+        return {
+            header,
+            frame,
         };
     }
 

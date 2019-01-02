@@ -11,15 +11,19 @@ export default class Demuxer {
         this.audioFrames = [];
         this.videoFrames = [];
 
+        this.scripTag = new ScripTag(flv);
+        this.videoTag = new VideoTag(flv);
+        this.audioTag = new AudioTag(flv);
+
         flv.on('parseTag', tag => {
             switch (tag.tagType) {
                 case 18:
-                    this.scripMeta = new ScripTag(flv, tag);
+                    this.scripMeta = this.scripTag.demuxer(tag);
                     flv.emit('scripMeta', this.scripMeta);
                     debug.log('scrip-meta', this.scripMeta);
                     break;
                 case 9: {
-                    const { frame, header } = new VideoTag(flv, tag, !this.videoHeader);
+                    const { frame, header } = this.videoTag.demuxer(tag, !this.videoHeader);
                     if (frame) {
                         this.videoFrames.push(frame);
                         flv.emit('videoFrame', frame);
@@ -32,7 +36,7 @@ export default class Demuxer {
                     break;
                 }
                 case 8: {
-                    const { frame, header } = new AudioTag(flv, tag, !this.audioHeader);
+                    const { frame, header } = this.audioTag.demuxer(tag, !this.audioHeader);
                     if (frame) {
                         this.audioFrames.push(frame);
                         flv.emit('audioFrame', frame);

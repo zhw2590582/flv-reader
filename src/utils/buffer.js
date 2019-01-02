@@ -1,6 +1,6 @@
 export function readBuffer(buffer) {
     let index = 0;
-    return function read(length) {
+    function read(length) {
         const tempUint8 = new Uint8Array(length);
         for (let i = 0; i < length; i += 1) {
             tempUint8[i] = buffer[index];
@@ -9,6 +9,8 @@ export function readBuffer(buffer) {
         read.index = index;
         return tempUint8;
     };
+    read.index = 0;
+    return read;
 }
 
 export function mergeBuffer(...buffers) {

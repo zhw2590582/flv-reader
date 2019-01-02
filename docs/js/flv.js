@@ -5235,7 +5235,7 @@ var FLVDemuxer = function () {
             var packetType = v.getUint8(0);
             var cts_unsigned = v.getUint32(0, !le) & 0x00FFFFFF;
             var cts = cts_unsigned << 8 >> 8; // convert to 24-bit signed int
-            console.log(cts);
+            // console.log(cts);
 
             if (packetType === 0) {
                 // AVCDecoderConfigurationRecord
@@ -5447,8 +5447,9 @@ var FLVDemuxer = function () {
                     return;
                 }
 
+                console.log(arrayBuffer);
                 var unitType = v.getUint8(offset + lengthSize) & 0x1F;
-
+                console.log(unitType);
                 if (unitType === 5) {
                     // IDR
                     keyframe = true;

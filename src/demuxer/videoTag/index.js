@@ -1,14 +1,20 @@
 import H264 from './h264';
 
 export default class VideoTag {
-    constructor(flv, tag, requestHeader) {
+    constructor(flv) {
         this.flv = flv;
-        const { debug } = flv;
+        this.h264 = new H264(flv);
+    }
+
+    demuxer(tag, requestHeader) {
+        const { debug } = this.flv;
         const { codecID } = this.getVideoMeta(tag);
         debug.error(codecID === 7, `[videoTrack] Unsupported codec in video frame: ${codecID}`);
-        const { frame, header } = new H264(flv, tag, requestHeader);
-        this.frame = frame;
-        this.header = header;
+        const { frame, header } = this.h264.demuxer(tag, requestHeader);
+        return {
+            header,
+            frame,
+        };
     }
 
     getVideoMeta(tag) {

@@ -1,31 +1,25 @@
-import { readBuffer, readBufferSum, decimalToHex } from '../../utils/buffer';
+import { readBuffer, readBufferSum } from '../../utils/buffer';
 
 export default class H264 {
-    constructor(flv, tag, requestHeader) {
+    constructor(flv) {
         this.flv = flv;
+        this.AVCDecoderConfigurationRecord = {};
+    }
 
-        this.AVCDecoderConfigurationRecord = {
-            configurationVersion: 0,
-            AVCProfileIndication: 0,
-            profile_compatibility: 0,
-            AVCLevelIndication: 0,
-            lengthSizeMinusOne: 0,
-            numOfSequenceParameterSets: 0,
-            sequenceParameterSetLength: 0,
-            sequenceParameterSetNALUnit: {},
-            numOfPictureParameterSets: 0,
-            pictureParameterSetLength: 0,
-            pictureParameterSetNALUnit: {},
-        };
+    static get UNIT_MASK () {
+        return Buffer.from([0x00, 0x00, 0x00, 0x01]);
+    }
 
+    demuxer(tag, requestHeader) {
         const { debug } = this.flv;
         const packet = tag.body.slice(1);
         debug.error(packet.length >= 4, '[H264] Invalid AVC packet, missing AVCPacketType or/and CompositionTime');
+        let frame = null;
+        let header = null;
 
         const view = new DataView(packet.buffer);
         const packetType = view.getUint8(0);
         const cts = ((view.getUint32(0) & 0x00ffffff) << 8) >> 8;
-
         const packetData = packet.slice(4);
 
         if (packetType === 0) {
@@ -33,15 +27,19 @@ export default class H264 {
             this.flv.emit('AVCDecoderConfigurationRecord', this.AVCDecoderConfigurationRecord);
             debug.log('avc-decoder-configuration-record', this.AVCDecoderConfigurationRecord);
         } else if (packetType === 1) {
-            this.getAVCVideoData(packetData, cts);
+            frame = this.getAVCVideoData(packetData, cts);
         } else {
             debug.error(packetType === 2, `[H264] Invalid video packet type ${packetType}`);
         }
+
+        return {
+            header,
+            frame,
+        };
     }
 
     getAVCDecoderConfigurationRecord(packetData) {
         const { debug } = this.flv;
-        console.log(decimalToHex(packetData));
         debug.error(packetData.length >= 7, '[H264] AVCDecoderConfigurationRecord parse length is not enough');
         const readDcr = readBuffer(packetData);
         const result = {};
@@ -111,10 +109,19 @@ export default class H264 {
     }
 
     getSPS(uint8) {
+        const result = {};
         console.log(uint8);
+        return result;
     }
 
-    getAVCVideoData(packet) {
-        // TODO
+    getAVCVideoData(packetData, cts) {
+        const frame = [];
+        const { lengthSizeMinusOne } = this.AVCDecoderConfigurationRecord;
+        const readVideo = readBuffer(packetData);
+        while(readVideo.index < packetData.length) {
+            const length = readBufferSum(readVideo(lengthSizeMinusOne));
+            frame.push(readVideo(length));
+        }
+        return frame;
     }
 }

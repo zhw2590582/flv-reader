@@ -1,22 +1,26 @@
 import { readBuffer, readDouble, readBoolean, readString, readBufferSum } from '../../utils/buffer';
 
 export default class ScripTag {
-    constructor(flv, tag) {
-        const { debug } = flv;
+    constructor(flv) {
+        this.flv = flv;
+    }
+
+    demuxer(tag) {
+        const { debug } = this.flv;
         const readScripTag = readBuffer(tag.body);
         const amf1 = Object.create(null);
         const amf2 = Object.create(null);
-    
+
         [amf1.type] = readScripTag(1);
         debug.error(amf1.type === 2, `AMF: [amf1] type expect 2, but got ${amf1.type}`);
         amf1.size = readBufferSum(readScripTag(2));
         amf1.string = readString(readScripTag(amf1.size));
-    
+
         [amf2.type] = readScripTag(1);
         debug.error(amf2.type === 8, `AMF: [amf2] type expect 8, but got ${amf2.type}`);
         amf2.size = readBufferSum(readScripTag(4));
         amf2.metaData = Object.create(null);
-    
+
         function getValue(type) {
             let value = null;
             if (type !== undefined) {
@@ -94,7 +98,7 @@ export default class ScripTag {
             }
             return value;
         }
-    
+
         while (readScripTag.index < tag.body.length) {
             const nameLength = readBufferSum(readScripTag(2));
             const name = readString(readScripTag(nameLength));
@@ -103,11 +107,13 @@ export default class ScripTag {
                 amf2.metaData[name] = getValue(type);
             }
         }
-    
+
         debug.error(readScripTag.index === tag.body.length, 'AMF: Seems to be incompletely parsed');
         debug.error(amf2.size === Object.keys(amf2.metaData).length, 'AMF: [amf2] length does not match');
 
-        this.amf1 = amf1;
-        this.amf2 = amf2;
+        return {
+            amf1,
+            amf2,
+        };
     }
 }
