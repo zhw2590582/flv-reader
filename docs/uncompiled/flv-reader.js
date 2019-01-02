@@ -1544,6 +1544,37 @@
     return AudioTag;
   }();
 
+  function createAbortError() {
+    try {
+      return new DOMException('Aborted', 'AbortError');
+    } catch (err) {
+      var abortError = new Error('Aborted');
+      abortError.name = 'AbortError';
+      return abortError;
+    }
+  }
+  function sleep() {
+    var ms = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+    return new Promise(function (resolve) {
+      return setTimeout(resolve, ms);
+    });
+  }
+  function download(url, name) {
+    var elink = document.createElement('a');
+    elink.style.display = 'none';
+    elink.href = url;
+    elink.download = name;
+    document.body.appendChild(elink);
+    elink.click();
+    document.body.removeChild(elink);
+  }
+
+  var utils = /*#__PURE__*/Object.freeze({
+    createAbortError: createAbortError,
+    sleep: sleep,
+    download: download
+  });
+
   var H264 =
   /*#__PURE__*/
   function () {
@@ -1551,7 +1582,9 @@
       classCallCheck(this, H264);
 
       this.flv = flv;
+      this.frameHeader = new Uint8Array([0x00, 0x00, 0x00, 0x01]);
       this.AVCDecoderConfigurationRecord = {};
+      this.frames = [];
     }
 
     createClass(H264, [{
@@ -1623,7 +1656,7 @@
             var sequenceParameterSetNALUnit = readDcr(result.sequenceParameterSetLength);
 
             if (index === 0) {
-              result.sequenceParameterSetNALUnit = this.getSPS(sequenceParameterSetNALUnit);
+              result.sequenceParameterSetNALUnit = sequenceParameterSetNALUnit;
             }
           }
         }
@@ -1665,21 +1698,28 @@
     }, {
       key: "getAVCVideoData",
       value: function getAVCVideoData(packetData, cts) {
-        var frame = [];
+        var _this$frames;
+
         var lengthSizeMinusOne = this.AVCDecoderConfigurationRecord.lengthSizeMinusOne;
         var readVideo = readBuffer(packetData);
+        var frames = [];
 
         while (readVideo.index < packetData.length) {
           var length = readBufferSum(readVideo(lengthSizeMinusOne));
-          frame.push(readVideo(length));
+          frames.push(mergeBuffer(this.frameHeader, readVideo(length)));
         }
 
-        return frame;
+        (_this$frames = this.frames).push.apply(_this$frames, frames);
+
+        return frames;
       }
-    }], [{
-      key: "UNIT_MASK",
-      get: function get() {
-        return Buffer.from([0x00, 0x00, 0x00, 0x01]);
+    }, {
+      key: "download",
+      value: function download$$1() {
+        var buffer = mergeBuffer.apply(void 0, [this.frameHeader, this.AVCDecoderConfigurationRecord.sequenceParameterSetNALUnit, this.frameHeader, this.AVCDecoderConfigurationRecord.pictureParameterSetNALUnit].concat(toConsumableArray(this.frames)));
+        var url = URL.createObjectURL(new Blob([buffer]));
+
+        download(url, "videoTrack.h264");
       }
     }]);
 
@@ -1969,37 +2009,6 @@
       }
     });
   };
-
-  function createAbortError() {
-    try {
-      return new DOMException('Aborted', 'AbortError');
-    } catch (err) {
-      var abortError = new Error('Aborted');
-      abortError.name = 'AbortError';
-      return abortError;
-    }
-  }
-  function sleep() {
-    var ms = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
-    return new Promise(function (resolve) {
-      return setTimeout(resolve, ms);
-    });
-  }
-  function download(url, name) {
-    var elink = document.createElement('a');
-    elink.style.display = 'none';
-    elink.href = url;
-    elink.download = name;
-    document.body.appendChild(elink);
-    elink.click();
-    document.body.removeChild(elink);
-  }
-
-  var utils = /*#__PURE__*/Object.freeze({
-    createAbortError: createAbortError,
-    sleep: sleep,
-    download: download
-  });
 
   var id = 0;
 

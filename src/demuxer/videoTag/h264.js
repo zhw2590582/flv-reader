@@ -1,13 +1,12 @@
-import { readBuffer, readBufferSum } from '../../utils/buffer';
+import { readBuffer, readBufferSum, mergeBuffer } from '../../utils/buffer';
+import { download } from '../../utils';
 
 export default class H264 {
     constructor(flv) {
         this.flv = flv;
+        this.frameHeader = new Uint8Array([0x00, 0x00, 0x00, 0x01]);
         this.AVCDecoderConfigurationRecord = {};
-    }
-
-    static get UNIT_MASK () {
-        return Buffer.from([0x00, 0x00, 0x00, 0x01]);
+        this.frames = [];
     }
 
     demuxer(tag, requestHeader) {
@@ -54,7 +53,7 @@ export default class H264 {
             if (result.sequenceParameterSetLength > 0) {
                 const sequenceParameterSetNALUnit = readDcr(result.sequenceParameterSetLength);
                 if (index === 0) {
-                    result.sequenceParameterSetNALUnit = this.getSPS(sequenceParameterSetNALUnit);
+                    result.sequenceParameterSetNALUnit = sequenceParameterSetNALUnit;
                 }
             }
         }
@@ -115,13 +114,26 @@ export default class H264 {
     }
 
     getAVCVideoData(packetData, cts) {
-        const frame = [];
         const { lengthSizeMinusOne } = this.AVCDecoderConfigurationRecord;
         const readVideo = readBuffer(packetData);
-        while(readVideo.index < packetData.length) {
+        const frames = [];
+        while (readVideo.index < packetData.length) {
             const length = readBufferSum(readVideo(lengthSizeMinusOne));
-            frame.push(readVideo(length));
+            frames.push(mergeBuffer(this.frameHeader, readVideo(length)));
         }
-        return frame;
+        this.frames.push(...frames);
+        return frames;
+    }
+
+    download() {
+        const buffer = mergeBuffer(
+            this.frameHeader,
+            this.AVCDecoderConfigurationRecord.sequenceParameterSetNALUnit,
+            this.frameHeader,
+            this.AVCDecoderConfigurationRecord.pictureParameterSetNALUnit,
+            ...this.frames
+        );
+        const url = URL.createObjectURL(new Blob([buffer]));
+        download(url, `videoTrack.h264`);
     }
 }
