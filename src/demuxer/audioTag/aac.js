@@ -77,11 +77,11 @@ export default class AAC {
     getAudioSpecificConfig(packetData) {
         const { debug } = this.flv;
         debug.error(packetData.length >= 2, '[aac] AudioSpecificConfig parse length is not enough');
-        const AudioSpecificConfig = {};
-        AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
-        AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + (((packetData[1] & 0x80) >> 7) & 1);
-        AudioSpecificConfig.channelConfiguration = (packetData[1] & 0x7f) >> 3;
-        return AudioSpecificConfig;
+        const result = {};
+        result.audioObjectType = (packetData[0] & 0xf8) >> 3;
+        result.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + (((packetData[1] & 0x80) >> 7) & 1);
+        result.channelConfiguration = (packetData[1] & 0x7f) >> 3;
+        return result;
     }
 
     getADTSHeader(ADTSLen) {

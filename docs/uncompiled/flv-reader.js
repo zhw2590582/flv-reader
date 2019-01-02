@@ -601,11 +601,23 @@
       classCallCheck(this, Stream);
 
       var url = flv.options.url;
-      var transportFactory = Stream.getStreamFactory(url);
-      transportFactory(flv, url);
+      this.transportFactory = Stream.getStreamFactory(url);
+      this.transportFactory(flv, url);
     }
 
-    createClass(Stream, null, [{
+    createClass(Stream, [{
+      key: "cancel",
+      value: function cancel() {
+        // TODO
+        this.transportFactory.cancel();
+      }
+    }, {
+      key: "continue",
+      value: function _continue() {
+        // TODO
+        this.transportFactory.continue();
+      }
+    }], [{
       key: "getStreamFactory",
       value: function getStreamFactory(url) {
         if (url instanceof File) {
@@ -1112,6 +1124,11 @@
       return totle + (uint ? num : num - 128) * Math.pow(256, array.length - index - 1);
     }, 0);
   }
+  function decimalToHex(decimalArr) {
+    return Array.from(decimalArr).map(function (item) {
+      return (Array(2).join(0) + item.toString(16)).toUpperCase().slice(-2);
+    });
+  }
 
   var Parse =
   /*#__PURE__*/
@@ -1287,11 +1304,11 @@
       value: function getAudioSpecificConfig(packetData) {
         var debug = this.flv.debug;
         debug.error(packetData.length >= 2, '[aac] AudioSpecificConfig parse length is not enough');
-        var AudioSpecificConfig = {};
-        AudioSpecificConfig.audioObjectType = (packetData[0] & 0xf8) >> 3;
-        AudioSpecificConfig.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
-        AudioSpecificConfig.channelConfiguration = (packetData[1] & 0x7f) >> 3;
-        return AudioSpecificConfig;
+        var result = {};
+        result.audioObjectType = (packetData[0] & 0xf8) >> 3;
+        result.samplingFrequencyIndex = ((packetData[0] & 7) << 1) + ((packetData[1] & 0x80) >> 7 & 1);
+        result.channelConfiguration = (packetData[1] & 0x7f) >> 3;
+        return result;
       }
     }, {
       key: "getADTSHeader",
@@ -1517,7 +1534,17 @@
 
       this.flv = flv;
       this.AVCDecoderConfigurationRecord = {
-        configurationVersion: 0
+        configurationVersion: 0,
+        AVCProfileIndication: 0,
+        profile_compatibility: 0,
+        AVCLevelIndication: 0,
+        lengthSizeMinusOne: 0,
+        numOfSequenceParameterSets: 0,
+        sequenceParameterSetLength: 0,
+        sequenceParameterSetNALUnit: {},
+        numOfPictureParameterSets: 0,
+        pictureParameterSetLength: 0,
+        pictureParameterSetNALUnit: {}
       };
       var debug = this.flv.debug;
       var packet = tag.body.slice(1);
@@ -1542,16 +1569,80 @@
       key: "getAVCDecoderConfigurationRecord",
       value: function getAVCDecoderConfigurationRecord(packetData) {
         var debug = this.flv.debug;
+        console.log(decimalToHex(packetData));
         debug.error(packetData.length >= 7, '[H264] AVCDecoderConfigurationRecord parse length is not enough');
-        var AVCDecoderConfigurationRecord = {};
+        var readDcr = readBuffer(packetData);
+        var result = {};
 
-        var _packetData = slicedToArray(packetData, 4);
+        var _readDcr = readDcr(1);
 
-        AVCDecoderConfigurationRecord.configurationVersion = _packetData[0];
-        AVCDecoderConfigurationRecord.avcProfileIndication = _packetData[1];
-        AVCDecoderConfigurationRecord.profile_compatibility = _packetData[2];
-        AVCDecoderConfigurationRecord.AVCLevelIndication = _packetData[3];
-        return AVCDecoderConfigurationRecord;
+        var _readDcr2 = slicedToArray(_readDcr, 1);
+
+        result.configurationVersion = _readDcr2[0];
+
+        var _readDcr3 = readDcr(1);
+
+        var _readDcr4 = slicedToArray(_readDcr3, 1);
+
+        result.AVCProfileIndication = _readDcr4[0];
+
+        var _readDcr5 = readDcr(1);
+
+        var _readDcr6 = slicedToArray(_readDcr5, 1);
+
+        result.profile_compatibility = _readDcr6[0];
+
+        var _readDcr7 = readDcr(1);
+
+        var _readDcr8 = slicedToArray(_readDcr7, 1);
+
+        result.AVCLevelIndication = _readDcr8[0];
+        result.lengthSizeMinusOne = (readDcr(1)[0] & 3) + 1;
+        result.numOfSequenceParameterSets = readDcr(1)[0] & 31;
+
+        for (var index = 0; index < result.numOfSequenceParameterSets; index += 1) {
+          result.sequenceParameterSetLength = readBufferSum(readDcr(2));
+
+          if (result.sequenceParameterSetLength > 0) {
+            var sequenceParameterSetNALUnit = readDcr(result.sequenceParameterSetLength);
+
+            if (index === 0) {
+              result.sequenceParameterSetNALUnit = this.getSPS(sequenceParameterSetNALUnit);
+            }
+          }
+        }
+
+        var _readDcr9 = readDcr(1);
+
+        var _readDcr10 = slicedToArray(_readDcr9, 1);
+
+        result.numOfPictureParameterSets = _readDcr10[0];
+
+        for (var _index = 0; _index < result.numOfPictureParameterSets; _index += 1) {
+          result.pictureParameterSetLength = readBufferSum(readDcr(2));
+
+          if (result.pictureParameterSetLength > 0) {
+            var pictureParameterSetNALUnit = readDcr(result.pictureParameterSetLength);
+
+            if (_index === 0) {
+              result.pictureParameterSetNALUnit = pictureParameterSetNALUnit;
+            }
+          }
+        }
+
+        debug.error(result.configurationVersion === 1, "[H264] Invalid configurationVersion: ".concat(result.configurationVersion));
+        debug.error(result.AVCProfileIndication !== 0, "[H264] Invalid AVCProfileIndication: ".concat(result.AVCProfileIndication));
+        debug.error(result.lengthSizeMinusOne === 4 || result.lengthSizeMinusOne !== 3, "[H264] Invalid lengthSizeMinusOne: ".concat(result.lengthSizeMinusOne));
+        debug.error(result.numOfSequenceParameterSets !== 0, "[H264] Invalid numOfSequenceParameterSets: ".concat(result.numOfSequenceParameterSets));
+        debug.warn(result.numOfSequenceParameterSets === 1, "[H264] Strange numOfSequenceParameterSets: ".concat(result.numOfSequenceParameterSets));
+        debug.error(result.numOfPictureParameterSets !== 0, "[H264] Invalid numOfPictureParameterSets: ".concat(result.numOfPictureParameterSets));
+        debug.warn(result.numOfPictureParameterSets === 1, "[H264] Strange numOfPictureParameterSets: ".concat(result.numOfPictureParameterSets));
+        return result;
+      }
+    }, {
+      key: "getSPS",
+      value: function getSPS(uint8) {
+        console.log(uint8);
       }
     }, {
       key: "getAVCVideoData",
