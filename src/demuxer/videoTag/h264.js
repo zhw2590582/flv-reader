@@ -1,5 +1,6 @@
-import { readBuffer, readBufferSum, mergeBuffer } from '../../utils/buffer';
+import { readBuffer, readBufferSum, mergeBuffer, decimalToHex } from '../../utils/buffer';
 import { download } from '../../utils';
+import ReadSps from './readSps';
 
 export default class H264 {
     constructor(flv) {
@@ -51,7 +52,7 @@ export default class H264 {
         for (let index = 0; index < result.numOfSequenceParameterSets; index += 1) {
             result.sequenceParameterSetLength = readBufferSum(readDcr(2));
             if (result.sequenceParameterSetLength > 0) {
-                const sequenceParameterSetNALUnit = readDcr(result.sequenceParameterSetLength);
+                const sequenceParameterSetNALUnit = ReadSps.parser(readDcr(result.sequenceParameterSetLength));
                 if (index === 0) {
                     result.sequenceParameterSetNALUnit = sequenceParameterSetNALUnit;
                 }
@@ -104,12 +105,6 @@ export default class H264 {
             `[H264] Strange numOfPictureParameterSets: ${result.numOfPictureParameterSets}`,
         );
 
-        return result;
-    }
-
-    getSPS(uint8) {
-        const result = {};
-        console.log(uint8);
         return result;
     }
 

@@ -1575,6 +1575,69 @@
     download: download
   });
 
+  var ReadSps =
+  /*#__PURE__*/
+  function () {
+    function ReadSps() {
+      classCallCheck(this, ReadSps);
+    }
+
+    createClass(ReadSps, null, [{
+      key: "getProfileString",
+      value: function getProfileString(profileIdc) {
+        switch (profileIdc) {
+          case 66:
+            return 'Baseline';
+
+          case 77:
+            return 'Main';
+
+          case 88:
+            return 'Extended';
+
+          case 100:
+            return 'High';
+
+          case 110:
+            return 'High10';
+
+          case 122:
+            return 'High422';
+
+          case 244:
+            return 'High444';
+
+          default:
+            return 'Unknown';
+        }
+      }
+    }, {
+      key: "parser",
+      value: function parser(uint8) {
+        var result = {};
+        var readSPS = readBuffer(uint8);
+        readSPS(1);
+
+        var _readSPS = readSPS(1);
+
+        var _readSPS2 = slicedToArray(_readSPS, 1);
+
+        result.profile_idc = _readSPS2[0];
+        readSPS(1);
+
+        var _readSPS3 = readSPS(1);
+
+        var _readSPS4 = slicedToArray(_readSPS3, 1);
+
+        result.level_idc = _readSPS4[0];
+        console.log(uint8, result);
+        return result;
+      }
+    }]);
+
+    return ReadSps;
+  }();
+
   var H264 =
   /*#__PURE__*/
   function () {
@@ -1653,7 +1716,7 @@
           result.sequenceParameterSetLength = readBufferSum(readDcr(2));
 
           if (result.sequenceParameterSetLength > 0) {
-            var sequenceParameterSetNALUnit = readDcr(result.sequenceParameterSetLength);
+            var sequenceParameterSetNALUnit = ReadSps.parser(readDcr(result.sequenceParameterSetLength));
 
             if (index === 0) {
               result.sequenceParameterSetNALUnit = sequenceParameterSetNALUnit;
@@ -1686,13 +1749,6 @@
         debug.warn(result.numOfSequenceParameterSets === 1, "[H264] Strange numOfSequenceParameterSets: ".concat(result.numOfSequenceParameterSets));
         debug.error(result.numOfPictureParameterSets !== 0, "[H264] Invalid numOfPictureParameterSets: ".concat(result.numOfPictureParameterSets));
         debug.warn(result.numOfPictureParameterSets === 1, "[H264] Strange numOfPictureParameterSets: ".concat(result.numOfPictureParameterSets));
-        return result;
-      }
-    }, {
-      key: "getSPS",
-      value: function getSPS(uint8) {
-        var result = {};
-        console.log(uint8);
         return result;
       }
     }, {

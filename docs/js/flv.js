@@ -5447,9 +5447,7 @@ var FLVDemuxer = function () {
                     return;
                 }
 
-                console.log(arrayBuffer);
                 var unitType = v.getUint8(offset + lengthSize) & 0x1F;
-                console.log(unitType);
                 if (unitType === 5) {
                     // IDR
                     keyframe = true;
@@ -5668,6 +5666,7 @@ var SPSParser = function () {
             var profile_idc = gb.readByte(); // profile_idc
             gb.readByte(); // constraint_set_flags[5] + reserved_zero[3]
             var level_idc = gb.readByte(); // level_idc
+            console.log(uint8array, level_idc);
             gb.readUEG(); // seq_parameter_set_id
 
             var profile_string = SPSParser.getProfileString(profile_idc);
