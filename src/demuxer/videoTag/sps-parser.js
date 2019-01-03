@@ -1,6 +1,6 @@
 import { readBuffer } from '../../utils/buffer';
 
-export default class ReadSps {
+export default class SPSParser {
     static getProfileString(profileIdc) {
         switch (profileIdc) {
             case 66:

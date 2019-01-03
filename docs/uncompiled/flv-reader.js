@@ -1575,14 +1575,14 @@
     download: download
   });
 
-  var ReadSps =
+  var SPSParser =
   /*#__PURE__*/
   function () {
-    function ReadSps() {
-      classCallCheck(this, ReadSps);
+    function SPSParser() {
+      classCallCheck(this, SPSParser);
     }
 
-    createClass(ReadSps, null, [{
+    createClass(SPSParser, null, [{
       key: "getProfileString",
       value: function getProfileString(profileIdc) {
         switch (profileIdc) {
@@ -1635,7 +1635,22 @@
       }
     }]);
 
-    return ReadSps;
+    return SPSParser;
+  }();
+
+  var PPSParser =
+  /*#__PURE__*/
+  function () {
+    function PPSParser() {
+      classCallCheck(this, PPSParser);
+    }
+
+    createClass(PPSParser, null, [{
+      key: "parser",
+      value: function parser(uint8) {}
+    }]);
+
+    return PPSParser;
   }();
 
   var H264 =
@@ -1646,6 +1661,8 @@
 
       this.flv = flv;
       this.frameHeader = new Uint8Array([0x00, 0x00, 0x00, 0x01]);
+      this.SPS = new Uint8Array(0);
+      this.PPS = new Uint8Array(0);
       this.AVCDecoderConfigurationRecord = {};
       this.frames = [];
     }
@@ -1716,10 +1733,10 @@
           result.sequenceParameterSetLength = readBufferSum(readDcr(2));
 
           if (result.sequenceParameterSetLength > 0) {
-            var sequenceParameterSetNALUnit = ReadSps.parser(readDcr(result.sequenceParameterSetLength));
+            this.SPS = readDcr(result.sequenceParameterSetLength);
 
             if (index === 0) {
-              result.sequenceParameterSetNALUnit = sequenceParameterSetNALUnit;
+              result.sequenceParameterSetNALUnit = SPSParser.parser(this.SPS);
             }
           }
         }
@@ -1734,10 +1751,10 @@
           result.pictureParameterSetLength = readBufferSum(readDcr(2));
 
           if (result.pictureParameterSetLength > 0) {
-            var pictureParameterSetNALUnit = readDcr(result.pictureParameterSetLength);
+            this.PPS = readDcr(result.pictureParameterSetLength);
 
             if (_index === 0) {
-              result.pictureParameterSetNALUnit = pictureParameterSetNALUnit;
+              result.pictureParameterSetNALUnit = PPSParser.parser(this.PPS);
             }
           }
         }
@@ -1753,7 +1770,7 @@
       }
     }, {
       key: "getAVCVideoData",
-      value: function getAVCVideoData(packetData, cts) {
+      value: function getAVCVideoData(packetData) {
         var _this$frames;
 
         var lengthSizeMinusOne = this.AVCDecoderConfigurationRecord.lengthSizeMinusOne;
@@ -1772,7 +1789,7 @@
     }, {
       key: "download",
       value: function download$$1() {
-        var buffer = mergeBuffer.apply(void 0, [this.frameHeader, this.AVCDecoderConfigurationRecord.sequenceParameterSetNALUnit, this.frameHeader, this.AVCDecoderConfigurationRecord.pictureParameterSetNALUnit].concat(toConsumableArray(this.frames)));
+        var buffer = mergeBuffer.apply(void 0, [this.frameHeader, this.SPS, this.frameHeader, this.PPS].concat(toConsumableArray(this.frames)));
         var url = URL.createObjectURL(new Blob([buffer]));
 
         download(url, "videoTrack.h264");

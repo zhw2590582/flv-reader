@@ -1,11 +1,14 @@
 import { readBuffer, readBufferSum, mergeBuffer, decimalToHex } from '../../utils/buffer';
 import { download } from '../../utils';
-import ReadSps from './readSps';
+import SPSParser from './sps-parser';
+import PPSParser from './pps-parser';
 
 export default class H264 {
     constructor(flv) {
         this.flv = flv;
         this.frameHeader = new Uint8Array([0x00, 0x00, 0x00, 0x01]);
+        this.SPS = new Uint8Array(0);
+        this.PPS = new Uint8Array(0);
         this.AVCDecoderConfigurationRecord = {};
         this.frames = [];
     }
@@ -48,13 +51,14 @@ export default class H264 {
         [result.profile_compatibility] = readDcr(1);
         [result.AVCLevelIndication] = readDcr(1);
         result.lengthSizeMinusOne = (readDcr(1)[0] & 3) + 1;
+        
         result.numOfSequenceParameterSets = readDcr(1)[0] & 31;
         for (let index = 0; index < result.numOfSequenceParameterSets; index += 1) {
             result.sequenceParameterSetLength = readBufferSum(readDcr(2));
             if (result.sequenceParameterSetLength > 0) {
-                const sequenceParameterSetNALUnit = ReadSps.parser(readDcr(result.sequenceParameterSetLength));
+                this.SPS = readDcr(result.sequenceParameterSetLength);
                 if (index === 0) {
-                    result.sequenceParameterSetNALUnit = sequenceParameterSetNALUnit;
+                    result.sequenceParameterSetNALUnit = SPSParser.parser(this.SPS);
                 }
             }
         }
@@ -63,9 +67,9 @@ export default class H264 {
         for (let index = 0; index < result.numOfPictureParameterSets; index += 1) {
             result.pictureParameterSetLength = readBufferSum(readDcr(2));
             if (result.pictureParameterSetLength > 0) {
-                const pictureParameterSetNALUnit = readDcr(result.pictureParameterSetLength);
+                this.PPS = readDcr(result.pictureParameterSetLength);
                 if (index === 0) {
-                    result.pictureParameterSetNALUnit = pictureParameterSetNALUnit;
+                    result.pictureParameterSetNALUnit = PPSParser.parser(this.PPS);
                 }
             }
         }
@@ -108,7 +112,7 @@ export default class H264 {
         return result;
     }
 
-    getAVCVideoData(packetData, cts) {
+    getAVCVideoData(packetData) {
         const { lengthSizeMinusOne } = this.AVCDecoderConfigurationRecord;
         const readVideo = readBuffer(packetData);
         const frames = [];
@@ -123,9 +127,9 @@ export default class H264 {
     download() {
         const buffer = mergeBuffer(
             this.frameHeader,
-            this.AVCDecoderConfigurationRecord.sequenceParameterSetNALUnit,
+            this.SPS,
             this.frameHeader,
-            this.AVCDecoderConfigurationRecord.pictureParameterSetNALUnit,
+            this.PPS,
             ...this.frames
         );
         const url = URL.createObjectURL(new Blob([buffer]));
