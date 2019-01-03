@@ -1638,21 +1638,6 @@
     return SPSParser;
   }();
 
-  var PPSParser =
-  /*#__PURE__*/
-  function () {
-    function PPSParser() {
-      classCallCheck(this, PPSParser);
-    }
-
-    createClass(PPSParser, null, [{
-      key: "parser",
-      value: function parser(uint8) {}
-    }]);
-
-    return PPSParser;
-  }();
-
   var H264 =
   /*#__PURE__*/
   function () {
@@ -1751,11 +1736,7 @@
           result.pictureParameterSetLength = readBufferSum(readDcr(2));
 
           if (result.pictureParameterSetLength > 0) {
-            this.PPS = readDcr(result.pictureParameterSetLength);
-
-            if (_index === 0) {
-              result.pictureParameterSetNALUnit = PPSParser.parser(this.PPS);
-            }
+            readDcr(result.pictureParameterSetLength);
           }
         }
 
@@ -2083,6 +2064,11 @@
     });
   };
 
+  var Remuxer = function Remuxer(flv) {//
+
+    classCallCheck(this, Remuxer);
+  };
+
   var id = 0;
 
   var FlvReader =
@@ -2105,6 +2091,7 @@
       _this.workers = new Workers(assertThisInitialized(assertThisInitialized(_this)));
       _this.parse = new Parse(assertThisInitialized(assertThisInitialized(_this)));
       _this.demuxer = new Demuxer(assertThisInitialized(assertThisInitialized(_this)));
+      _this.remuxer = new Remuxer(assertThisInitialized(assertThisInitialized(_this)));
       _this.mse = new MSE(assertThisInitialized(assertThisInitialized(_this)));
       _this.stream = new Stream(assertThisInitialized(assertThisInitialized(_this)));
       id += 1;

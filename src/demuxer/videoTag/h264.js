@@ -1,7 +1,6 @@
 import { readBuffer, readBufferSum, mergeBuffer, decimalToHex } from '../../utils/buffer';
 import { download } from '../../utils';
 import SPSParser from './sps-parser';
-import PPSParser from './pps-parser';
 
 export default class H264 {
     constructor(flv) {
@@ -67,10 +66,7 @@ export default class H264 {
         for (let index = 0; index < result.numOfPictureParameterSets; index += 1) {
             result.pictureParameterSetLength = readBufferSum(readDcr(2));
             if (result.pictureParameterSetLength > 0) {
-                this.PPS = readDcr(result.pictureParameterSetLength);
-                if (index === 0) {
-                    result.pictureParameterSetNALUnit = PPSParser.parser(this.PPS);
-                }
+                readDcr(result.pictureParameterSetLength);
             }
         }
 

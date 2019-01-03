@@ -8,6 +8,7 @@ import Stream from './stream';
 import MSE from './mse';
 import Parse from './parse';
 import Demuxer from './demuxer';
+import Remuxer from './remuxer';
 import * as utils from './utils';
 import config from './config';
 
@@ -26,6 +27,7 @@ class FlvReader extends Emitter {
         this.workers = new Workers(this);
         this.parse = new Parse(this);
         this.demuxer = new Demuxer(this);
+        this.remuxer = new Remuxer(this);
         this.mse = new MSE(this);
         this.stream = new Stream(this);
 
